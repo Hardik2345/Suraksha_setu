@@ -1,0 +1,55 @@
+{
+  "info": {
+    "name": "Suraksha Setu Backend",
+    "_postman_id": "suraksha-setu-collection",
+    "description": "Collection for auth, SOS and dashboard endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"passwordConfirm\": \"password123\"\n}"
+        },
+        "url": { "raw": "http://localhost:5000/register", "host": ["http://localhost:5000"], "path": ["register"] }
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}" },
+        "url": { "raw": "http://localhost:5000/login", "host": ["http://localhost:5000"], "path": ["login"] }
+      }
+    },
+    {
+      "name": "Create SOS",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"medical\",\n  \"description\": \"Help needed\",\n  \"lat\": 12.34,\n  \"lng\": 56.78\n}"
+        },
+        "url": { "raw": "http://localhost:5000/sos", "host": ["http://localhost:5000"], "path": ["sos"] }
+      }
+    },
+    {
+      "name": "List SOS",
+      "request": { "method": "GET", "url": { "raw": "http://localhost:5000/sos", "host": ["http://localhost:5000"], "path": ["sos"] } }
+    },
+    {
+      "name": "Citizen Dashboard",
+      "request": { "method": "GET", "url": { "raw": "http://localhost:5000/dashboard", "host": ["http://localhost:5000"], "path": ["dashboard"] } }
+    },
+    {
+      "name": "Admin Dashboard",
+      "request": { "method": "GET", "url": { "raw": "http://localhost:5000/admin/dashboard", "host": ["http://localhost:5000"], "path": ["admin","dashboard"] } }
+    }
+  ]
+}

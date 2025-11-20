@@ -1,0 +1,32 @@
+suraksha-setu/
+├── models/
+│   ├── User.js          ✅ Complete schema with bcrypt
+│   └── SOS.js           ✅ Complete schema with geolocation
+├── controllers/
+│   ├── authController.js     ✅ Register, login, logout, profile
+│   ├── sosController.js      ✅ Create, list, view, update status
+│   └── dashboardController.js ✅ Citizen & admin dashboards
+├── routes/
+│   ├── auth.js          ✅ All auth routes
+│   ├── sos.js           ✅ All SOS routes
+│   └── dashboard.js     ✅ Dashboard routes
+├── middleware/
+│   └── auth.js          ✅ isAuthenticated, isAdmin
+├── config/
+│   └── passport.js      ✅ Local strategy configuration
+├── views/
+│   ├── auth/
+│   │   ├── register.ejs
+│   │   └── login.ejs
+│   ├── sos/
+│   │   ├── create.ejs
+│   │   └── list.ejs
+│   ├── dashboard/
+│   │   ├── citizen.ejs
+│   │   └── admin.ejs
+│   └── partials/
+│       └── navbar.ejs
+├── public/
+│   └── css/
+│       └── styles.css
+└── server.js            ✅ Already set up by you!
