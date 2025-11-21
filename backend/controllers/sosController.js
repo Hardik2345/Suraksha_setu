@@ -19,16 +19,26 @@ exports.getCreateSOS = (req, res) => {
 
 exports.createSOS = async (req, res, next) => {
   try {
-    const { type, severity, description, lat, lng, address, contactNumber } = req.body;
-    if (!type || !description || !lat || !lng) return res.status(400).json({ message: 'Missing required fields' });
+    // Accept either top-level lat/lng or nested location: { lat, lng }
+    const { type, severity, description, lat, lng, address, contactNumber, location } = req.body;
+
+    const rlat = lat ?? (location && location.lat);
+    const rlng = lng ?? (location && location.lng);
+    const raddress = address ?? (location && location.address);
+
+    if (!type || !description || rlat === undefined || rlng === undefined) {
+      return res.status(400).json({ message: 'Missing required fields: type, description, lat and lng are required' });
+    }
+
     const sos = await SOS.create({
       userId: req.user._id,
       type,
       severity: severity || 'high',
       description,
-      location: { lat, lng, address },
-      contactNumber: contactNumber || req.user.phone
+      location: { lat: rlat, lng: rlng, address: raddress },
+      contactNumber: contactNumber || (req.user && req.user.phone)
     });
+
     res.status(201).json({ success: true, data: sos });
   } catch (err) {
     next(err);

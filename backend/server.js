@@ -1,16 +1,15 @@
-const express=require("express")
+const express = require("express")
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
-const mongoose=require("mongoose")
-const morgan=require("morgan")
+const mongoose = require("mongoose")
+const morgan = require("morgan")
 const crypto = require('crypto');
-const helmet=require("helmet")
-const cors=require("cors")
+const helmet = require("helmet")
+const cors = require("cors")
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const Redis = require('ioredis');
-const { RedisStore } = require('rate-limit-redis');
 
 // Load environment variables early and determine environment
 require('dotenv').config();
@@ -25,6 +24,17 @@ if ((isProduction || allowRedisInDev) && process.env.REDIS_URL) {
 } else {
   console.log('Redis client disabled (set REDIS_URL and USE_REDIS_IN_DEV=true to enable in dev)');
 }
+if (redisClient) {
+  const rawSet = redisClient.set.bind(redisClient);
+  redisClient.set = (...args) => {
+    // If third arg is an options object (node-redis style), drop it for ioredis.
+    if (args.length >= 3 && typeof args[2] === 'object' && args[2] !== null) {
+      // args = [key, value, optionsObj]
+      return rawSet(args[0], args[1]); // ignore options object; rely on cookie expiry
+    }
+    return rawSet(...args);
+  };
+}
 
 // (compatRedisClient wrapper removed) Use `redisClient` directly.
 const hpp = require('hpp');
@@ -34,13 +44,28 @@ try { ConnectRedis = require('connect-redis'); } catch (e) { ConnectRedis = null
 const flash = require('connect-flash');
 const passport = require('./config/passport');
 const path = require('path');
-const http=require("http")
+const http = require("http")
 const AppError = require('./utils/appError.js');
 const globalErrorHandler = require('./controllers/errorController');
 require("dotenv").config()
 
-const app=express()
-const server=http.createServer(app)
+// Swagger/OpenAPI
+// Swagger/OpenAPI
+let swaggerUi;
+let swaggerSpec;
+try {
+  swaggerUi = require('swagger-ui-express');
+  const YAML = require('yamljs');
+  swaggerSpec = YAML.load('./swagger.yaml');
+} catch (e) {
+  // swagger dependencies may not be installed in minimal environments
+  swaggerUi = null;
+  swaggerSpec = null;
+  console.warn('swagger-ui-express or yamljs not available:', e.message);
+}
+
+const app = express()
+const server = http.createServer(app)
 app.set('trust proxy', 1);
 
 // Environment flag (defined earlier)
@@ -52,7 +77,7 @@ app.use((req, res, next) => {
 });
 
 // Set security HTTP headers
-app.use(helmet()); 
+app.use(helmet());
 
 // Content Security Policy
 const cspDirectives = {
@@ -209,65 +234,7 @@ if (redisClient) {
   redisClient.on('end', () => {
     console.log('🛑 Redis connection closed');
   });
-  // Enable monitor in non-production for debugging raw commands (opt-in)
-  if (!isProduction) {
-    try {
-      redisClient.monitor((err, monitor) => {
-        if (err) return console.warn('Redis monitor failed:', err);
-        monitor.on('monitor', (time, args, source) => {
-          console.log('REDIS MONITOR', args);
-        });
-      });
-    } catch (e) {
-      // ignore monitor failures in environments that don't support it
-    }
-  }
 }
-
-// Adapter that normalizes calls from rate-limit-redis to the installed Redis client.
-// rate-limit-redis expects a `sendCommand(...args)` function that accepts
-// command name and arguments: e.g. sendCommand('SCRIPT','LOAD', script)
-// For ioredis v5 we should use `new Redis.Command(name, args)` and
-// `redisClient.sendCommand(command)`. For other clients, fall back to `.call`.
-const redisSendCommand = async (...args) => {
-  if (!redisClient) throw new Error('redis client not configured');
-  try {
-    // Debug: log SCRIPT / EVALSHA invocations to help diagnose parser errors
-    const cmdName = String(args[0] || '').toUpperCase();
-    if (cmdName === 'SCRIPT' || cmdName === 'EVALSHA') {
-      try {
-        console.log('redisSendCommand ->', cmdName, 'args:', args.slice(1, 6).map(a => (typeof a === 'string' && a.length > 80) ? `${a.slice(0,80)}...(${a.length} chars)` : a));
-      } catch (e) {
-        console.log('redisSendCommand ->', cmdName, 'args: [unprintable]');
-      }
-    }
-    // ioredis exposes a Command constructor on the top-level import
-    if (typeof redisClient.sendCommand === 'function' && Redis && typeof Redis.Command === 'function') {
-      // Construct a Command with name and args. The Redis.Command constructor
-      // takes (name, args, opts?) in ioredis.
-      const name = args[0];
-      const cmdArgs = args.slice(1);
-      const cmd = new Redis.Command(name, cmdArgs, { replyEncoding: 'utf8' });
-      return redisClient.sendCommand(cmd);
-    }
-
-    // Fallback: if the client exposes `call`, use that (older ioredis / other clients)
-    if (typeof redisClient.call === 'function') {
-      return redisClient.call(...args);
-    }
-
-    // As a last resort, try passing the args array to sendCommand
-    if (typeof redisClient.sendCommand === 'function') {
-      return redisClient.sendCommand(args);
-    }
-
-    throw new Error('No supported redis client method for sendCommand');
-  } catch (err) {
-    // Surface the low-level error so it's easier to debug when scripts fail to load
-    console.error('redisSendCommand error:', err && err.stack ? err.stack : err);
-    throw err;
-  }
-};
 
 // Session store (Redis) - tolerant initialization for different connect-redis versions
 let sessionStoreInstance;
@@ -345,68 +312,107 @@ app.use((req, res, next) => {
   next();
 });
 
+// Custom Redis-backed store for express-rate-limit
+class RedisRateLimitStore {
+  constructor({ client, prefix = 'rl:' } = {}) {
+    if (!client) {
+      throw new Error('RedisRateLimitStore requires a Redis client');
+    }
+    this.redis = client;
+    this.prefix = prefix;
+    this.windowMs = 0; // will be set in init()
+  }
+
+  // Called by express-rate-limit with the options you pass to rateLimit()
+  init(options) {
+    this.windowMs = options.windowMs;
+  }
+
+  // Main method: increment hits for a key
+  async increment(key) {
+    const redisKey = this.prefix + key;
+    const now = Date.now();
+    const ttlMs = this.windowMs;
+
+    // Use MULTI to get current TTL and increment atomically-ish
+    const results = await this.redis
+      .multi()
+      .pttl(redisKey) // results[0][1]
+      .incr(redisKey) // results[1][1]
+      .exec();
+
+    const pttl = results[0][1]; // -2 = key does not exist, -1 = no TTL, >=0 = ms
+    const hits = results[1][1];
+
+    let resetMs;
+    if (pttl === -2 || pttl === -1) {
+      // New key or existing key without TTL: set TTL
+      await this.redis.pexpire(redisKey, ttlMs);
+      resetMs = ttlMs;
+    } else {
+      resetMs = pttl;
+    }
+
+    return {
+      totalHits: hits,
+      resetTime: new Date(now + resetMs),
+    };
+  }
+
+  // Used when skipFailedRequests/skipSuccessfulRequests are enabled
+  async decrement(key) {
+    const redisKey = this.prefix + key;
+    try {
+      await this.redis.decr(redisKey);
+    } catch (e) {
+      // best-effort; ignore errors here
+    }
+  }
+
+  // Reset rate limit for a specific key
+  async resetKey(key) {
+    const redisKey = this.prefix + key;
+    await this.redis.del(redisKey);
+  }
+
+  // Optional: reset everything
+  async resetAll() {
+    // Could scan and delete keys with this.prefix, but not required.
+  }
+}
+
 // Limit requests from same API
 let limiter;
-try {
-  // Use Redis-backed rate limiter when redisClient exists. In dev, set
-  // `USE_REDIS_IN_DEV=true` and provide `REDIS_URL` to opt in.
-  if (redisClient) {
-    try {
-      // Prefer passing the ioredis client directly if the store supports it
-      try {
-        // Use sendCommand adapter so the store can call Redis regardless of client API
-        const storeInstance = new RedisStore({ sendCommand: (...args) => redisSendCommand(...args) });
-        // Attach rejection handlers to the script-loading promises to avoid unhandled rejections
-        if (storeInstance.incrementScriptSha && typeof storeInstance.incrementScriptSha.catch === 'function') {
-          storeInstance.incrementScriptSha.catch((err) => {
-            console.warn('rate-limit-redis increment script load failed:', err);
-          });
-        }
-        if (storeInstance.getScriptSha && typeof storeInstance.getScriptSha.catch === 'function') {
-          storeInstance.getScriptSha.catch((err) => {
-            console.warn('rate-limit-redis get script load failed:', err);
-          });
-        }
-        limiter = rateLimit({
-          store: storeInstance,
-          max: 100,
-          windowMs: 60 * 60 * 1000,
-          keyGenerator: ipKeyGenerator,
-          message: 'Too many requests from this IP, please try again in an hour!',
-        });
-        console.log(`Rate limiter: Redis store enabled (${isProduction ? 'production' : 'development (opt-in)'}).`);
-      } catch (errClient) {
-        // Fallback: try sendCommand signature (some versions require this)
-        try {
-          limiter = rateLimit({
-            store: new RedisStore({ sendCommand: (...args) => redisSendCommand(...args) }),
-            max: 100,
-            windowMs: 60 * 60 * 1000,
-            keyGenerator: ipKeyGenerator,
-            message: 'Too many requests from this IP, please try again in an hour!',
-          });
-          console.log('Rate limiter: Redis store enabled (sendCommand-fallback)');
-        } catch (errSend) {
-          console.warn('Could not initialize Redis rate-limit store (client/sendCommand), falling back to memory store:', errClient, errSend);
-          limiter = rateLimit({ max: 100, windowMs: 60 * 60 * 1000, keyGenerator: ipKeyGenerator });
-        }
-      }
-    } catch (err) {
-      console.warn('Could not initialize Redis rate-limit store, falling back to memory store:', err);
-      limiter = rateLimit({ max: 100, windowMs: 60 * 60 * 1000, keyGenerator: ipKeyGenerator });
-    }
-  } else {
-    // Redis not configured: use in-memory store
-    limiter = rateLimit({ max: 100, windowMs: 60 * 60 * 1000, keyGenerator: ipKeyGenerator });
-    console.log('Rate limiter: using in-memory store (Redis disabled)');
-  }
-} catch (err) {
-  limiter = rateLimit({ max: 100, windowMs: 60 * 60 * 1000, keyGenerator: ipKeyGenerator });
+
+if (redisClient) {
+  console.log(
+    `Rate limiter: Redis custom store enabled (${isProduction ? 'production' : 'development (opt-in)'})`
+  );
+
+  limiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 100,
+    keyGenerator: ipKeyGenerator,
+    standardHeaders: true,
+    legacyHeaders: false,
+    store: new RedisRateLimitStore({ client: redisClient }),
+    message: 'Too many requests from this IP, please try again in an hour!',
+  });
+} else {
+  console.log('Rate limiter: using in-memory store (Redis disabled)');
+  limiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 100,
+    keyGenerator: ipKeyGenerator,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 }
+
 app.use('/api', limiter);
 
 const allowedOrigins = [
-  "http://localhost:5173",     
+  "http://localhost:5173",
 ];
 
 app.use(cors({
@@ -431,6 +437,31 @@ app.use('/', sosRoutes);
 // Mount dashboard routes (Phase 3)
 const dashboardRoutes = require('./routes/dashboard');
 app.use('/', dashboardRoutes);
+// Mount Phase 4 routes: resources and alerts
+try {
+  const resourceRoutes = require('./routes/resource');
+  app.use('/', resourceRoutes);
+} catch (e) {
+  console.warn('Resource routes could not be mounted:', e.message);
+}
+
+try {
+  const alertRoutes = require('./routes/alert');
+  app.use('/', alertRoutes);
+} catch (e) {
+  console.warn('Alert routes could not be mounted:', e.message);
+}
+
+// Mount Swagger UI (if available) BEFORE error handlers so docs render
+if (swaggerUi && swaggerSpec) {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Suraksha Setu API Docs'
+  }));
+  console.log('📚 API Documentation available at: /api-docs');
+} else {
+  console.log('Swagger UI not mounted (missing dependency or config)');
+}
 
 //Configure content security policy later as per your needs
 
@@ -463,7 +494,7 @@ mongoose.connection.on("error", (err) => {
 
 mongoose.connection.on("disconnected", () => {
   console.log("Mongoose disconnected");
-}); 
+});
 
 const PORT = process.env.PORT || 5000;
 if (require.main === module) {

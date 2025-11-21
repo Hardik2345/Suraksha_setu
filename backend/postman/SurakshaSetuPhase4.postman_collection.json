@@ -1,0 +1,83 @@
+{
+  "info": {
+    "name": "Suraksha Setu - Phase 4",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for Auth, SOS, Dashboard, Resources & Alerts (Phase 4)"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"passwordConfirm\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/register", "host": ["{{baseUrl}}"], "path": ["register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/login", "host": ["{{baseUrl}}"], "path": ["login"] }
+          }
+        },
+        {
+          "name": "Profile (authenticated)",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/profile", "host": ["{{baseUrl}}"], "path": ["profile"] } }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/logout", "host": ["{{baseUrl}}"], "path": ["logout"] } }
+        }
+      ]
+    },
+    {
+      "name": "SOS",
+      "item": [
+        { "name": "List SOS", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/sos", "host": ["{{baseUrl}}"], "path": ["sos"] } } },
+        { "name": "Create SOS (form) GET", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/sos/create", "host": ["{{baseUrl}}"], "path": ["sos","create"] } } },
+        { "name": "Create SOS (POST)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"type\": \"medical\",\n  \"severity\": \"high\",\n  \"description\": \"Person injured\",\n  \"location\": { \"lat\": 12.34, \"lng\": 56.78 },\n  \"contactNumber\": \"1234567890\"\n}" }, "url": { "raw": "{{baseUrl}}/sos", "host": ["{{baseUrl}}"], "path": ["sos"] } } },
+        { "name": "View SOS by ID", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/sos/:id", "host": ["{{baseUrl}}"], "path": ["sos", ":id"] } } },
+        { "name": "Update SOS Status (admin)", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"status\": \"resolved\" }" }, "url": { "raw": "{{baseUrl}}/sos/:id/status", "host": ["{{baseUrl}}"], "path": ["sos", ":id", "status"] } } }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        { "name": "Citizen Dashboard", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/dashboard", "host": ["{{baseUrl}}"], "path": ["dashboard"] } } },
+        { "name": "Admin Dashboard", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/dashboard", "host": ["{{baseUrl}}"], "path": ["admin","dashboard"] } } }
+      ]
+    },
+    {
+      "name": "Resources",
+      "item": [
+        { "name": "List Resources", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/resources", "host": ["{{baseUrl}}"], "path": ["api","resources"] } } },
+        { "name": "Get Resource by ID", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/resources/:id", "host": ["{{baseUrl}}"], "path": ["api","resources",":id"] } } },
+        { "name": "Create Resource (admin)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Test Hospital\",\n  \"type\": \"hospital\",\n  \"address\": \"123 Main St\",\n  \"lat\": 12.34,\n  \"lng\": 56.78,\n  \"phone\": \"1234567890\"\n}" }, "url": { "raw": "{{baseUrl}}/api/resources", "host": ["{{baseUrl}}"], "path": ["api","resources"] } } },
+        { "name": "Update Resource (admin)", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"operatingHours\": \"9-5\" }" }, "url": { "raw": "{{baseUrl}}/api/resources/:id", "host": ["{{baseUrl}}"], "path": ["api","resources",":id"] } } },
+        { "name": "Delete Resource (admin)", "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/api/resources/:id", "host": ["{{baseUrl}}"], "path": ["api","resources",":id"] } } }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        { "name": "List Alerts (user)", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/alerts", "host": ["{{baseUrl}}"], "path": ["api","alerts"] } } },
+        { "name": "Mark Alert Read", "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": { "raw": "{{baseUrl}}/api/alerts/:id/read", "host": ["{{baseUrl}}"], "path": ["api","alerts",":id","read"] } } },
+        { "name": "Create Alert (admin)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"Flood Warning\",\n  \"message\": \"Heavy rains, avoid low-lying areas\",\n  \"type\": \"weather\",\n  \"severity\": \"warning\",\n  \"targetAudience\": \"all\"\n}" }, "url": { "raw": "{{baseUrl}}/api/alerts", "host": ["{{baseUrl}}"], "path": ["api","alerts"] } } },
+        { "name": "Alert History (admin)", "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/alerts/history", "host": ["{{baseUrl}}"], "path": ["api","alerts","history"] } } },
+        { "name": "Deactivate Alert (admin)", "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/api/alerts/:id", "host": ["{{baseUrl}}"], "path": ["api","alerts",":id"] } } }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" }
+  ]
+}
