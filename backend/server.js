@@ -49,19 +49,18 @@ const AppError = require('./utils/appError.js');
 const globalErrorHandler = require('./controllers/errorController');
 require("dotenv").config()
 
-// Swagger/OpenAPI
-// Swagger/OpenAPI
+// Swagger/OpenAPI: load combined spec from config/swagger.js (reads backend/swagger/openapi.json)
 let swaggerUi;
 let swaggerSpec;
 try {
   swaggerUi = require('swagger-ui-express');
-  const YAML = require('yamljs');
-  swaggerSpec = YAML.load('./swagger.yaml');
+  // Use the loader module which reads backend/swagger/openapi.json
+  swaggerSpec = require('./config/swagger');
 } catch (e) {
-  // swagger dependencies may not be installed in minimal environments
+  // swagger dependencies or spec file may not be available in minimal environments
   swaggerUi = null;
   swaggerSpec = null;
-  console.warn('swagger-ui-express or yamljs not available:', e.message);
+  console.warn('swagger-ui-express or OpenAPI spec not available:', e.message);
 }
 
 const app = express()
@@ -401,18 +400,24 @@ if (redisClient) {
 } else {
   console.log('Rate limiter: using in-memory store (Redis disabled)');
   limiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 100,
+    windowMs: 15 * 60 * 1000, // 15 minutes in dev
+    max: 1000, // Higher limit for development
     keyGenerator: ipKeyGenerator,
     standardHeaders: true,
     legacyHeaders: false,
   });
 }
 
-app.use('/api', limiter);
+// Only apply rate limiter in production
+if (isProduction) {
+  app.use('/api', limiter);
+} else {
+  console.log('Rate limiter disabled in development mode');
+}
 
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174"
 ];
 
 app.use(cors({
@@ -428,26 +433,27 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }));
 
-// Mount routes (auth routes added for Phase 1)
+// Mount routes with proper /api prefixes to match Swagger documentation
 const authRoutes = require('./routes/auth');
-app.use('/', authRoutes);
-// Mount SOS routes (Phase 2)
+app.use('/api/auth', authRoutes);
+
 const sosRoutes = require('./routes/sos');
-app.use('/', sosRoutes);
-// Mount dashboard routes (Phase 3)
+app.use('/api/sos', sosRoutes);
+
 const dashboardRoutes = require('./routes/dashboard');
-app.use('/', dashboardRoutes);
-// Mount Phase 4 routes: resources and alerts
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', dashboardRoutes);
+
 try {
   const resourceRoutes = require('./routes/resource');
-  app.use('/', resourceRoutes);
+  app.use('/api/resources', resourceRoutes);
 } catch (e) {
   console.warn('Resource routes could not be mounted:', e.message);
 }
 
 try {
   const alertRoutes = require('./routes/alert');
-  app.use('/', alertRoutes);
+  app.use('/api/alerts', alertRoutes);
 } catch (e) {
   console.warn('Alert routes could not be mounted:', e.message);
 }

@@ -1,0 +1,149 @@
+Suraksha Setu — Backend Overview
+Generated: 21-Nov-2025
+
+Purpose
+-------
+This document explains the backend architecture, entry points, middleware, models, controllers, key endpoints, geospatial features, runtime dependencies (MongoDB, Redis), environment variables, and recommended next steps for development and deployment.
+
+Repository layout (important backend files)
+- `backend/server.js`            — primary Express app entry: middleware, session, rate-limiter, route mounting, swagger mount
+- `backend/config/swagger.js`    — OpenAPI spec and swagger setup (mounted at `/api-docs` when enabled)
+- `backend/models/*.js`          — Mongoose models (User, SOS, Resource, Alert, etc.)
+- `backend/controllers/*.js`     — route handlers for business logic (authController, sosController, alertController, resourceController, dashboardController)
+- `backend/routes/*.js`          — routers exposing endpoints and applying auth middleware
+- `backend/middleware/*.js`      — auth helpers (isAuthenticated, isAdmin), sanitization wrappers, etc.
+- `backend/scripts/*.js`         — misc helpers (e.g., migration scripts)
+
+High-level architecture
+------------------------
+- Express app serves JSON API on `PORT` (default 6001 in dev).
+- Session-based authentication using `express-session` + `passport` (local strategy), cookie-based for browser clients.
+- Optional Redis integration (controlled by `USE_REDIS_IN_DEV`) for session store and rate-limiter store using `ioredis` + `connect-redis` tolerant adapters.
+- MongoDB (via Mongoose) for persistent data; GeoJSON fields and `2dsphere` indices are used for spatial queries.
+- Rate limiting via `express-rate-limit` with optional Redis-backed store; in-memory fallback used in dev for stability.
+
+Entry point and app lifecycle
+----------------------------
+- The main file is `backend/server.js`.
+  - It creates an Express `app` and sets security headers (Helmet, CSP nonce per-request, HSTS in production).
+  - It sets `app.set('trust proxy', ...)` appropriately (important for `req.ip` used by rate limiter when behind proxies).
+  - It configures body parsing, cookie parsing, sessions, and initializes Passport.
+  - It conditionally initializes a Redis client when `USE_REDIS_IN_DEV` or production is configured.
+  - It configures the rate limiter (Redis store if available) and mounts route modules.
+  - It exports `app` (so tests can import it) and starts the HTTP server only when run directly.
+
+Middleware and security hardening
+--------------------------------
+- Helmet: sets common security-related headers.
+- CSP: per-request nonce injected for inline scripts where necessary.
+- HSTS: applied only in production environments.
+- Sanitization wrappers: code uses safe wrappers (e.g., `req.safeBody` / `req.safeQuery`) to avoid mutating readonly Express properties and to prevent Mongo operator injection.
+- Rate limiting: global or route-specific `express-rate-limit` middleware. Keying uses `req.ip` — ensure `trust proxy` if behind a proxy.
+- Session cookie: HTTP-only, secure in production, signed with `SESSION_SECRET`.
+
+Authentication & Authorization
+------------------------------
+- Passport Local strategy for username/password authentication; session is used to persist login state.
+- Middleware helpers exist (`isAuthenticated`, `isAdmin`) and are applied in routes to guard admin-only endpoints.
+
+Models & geospatial usage
+-------------------------
+The backend uses GeoJSON points for geospatial operations in several models:
+- `User` (`backend/models/User.js`)
+  - `locationGeo` — GeoJSON `Point` (coordinates: `[lng, lat]`) with `2dsphere` index. Pre-save hooks populate it from `location.lat/lng` when available.
+- `Resource` (`backend/models/Resource.js`)
+  - `location` — stores `Point` and other address metadata; controllers perform `$near` queries to find resources near a coordinate.
+- `Alert` (`backend/models/Alert.js`)
+  - `location` — GeoJSON `Point`, `targetAudience` supports `location-based` alerts, and index `alertSchema.index({ location: '2dsphere' })` exists.
+- `SOS` (`backend/models/SOS.js`)
+  - Currently stores `lat`/`lng` as simple numeric fields (with `address`) and does not persist GeoJSON `Point` by default. This was done for simplicity but can be upgraded to store `locationGeo: { type: 'Point', coordinates: [lng, lat] }` with a `2dsphere` index for effective proximity queries.
+
+Existing geospatial behavior
+----------------------------
+- The `resourceController` uses `$near` to return resources within a radius of a user-supplied lat/lng.
+- The `alertController` will return `location-based` alerts near the requesting user's `location` using a `$near` query if the user has `lat`/`lng` available.
+
+Notifications & nearest-admin dispatch
+-------------------------------------
+- Current state: Alert creation has a TODO comment `// TODO: real notifications` and SOS creation does not attempt to locate nearest admins or dispatch notifications.
+- There is no background job queue (e.g., Bull/BullMQ) implemented yet. Redis is available as an opt-in, which would make adding a queue straightforward.
+
+If you want nearest-admin dispatch on SOS creation, recommended approach:
+ 1. Store SOS location as GeoJSON `locationGeo` in SOS model and add a `2dsphere` index.
+ 2. On SOS creation, asynchronously query `User` collection for `role: 'admin'` with a `$near` on `locationGeo` limited by distance and count.
+ 3. Enqueue notification jobs (SMS/push/email/websocket) using a queue (BullMQ) backed by Redis; workers perform delivery and retries.
+ 4. Add observability (logs/audit collection) for notifications and rate-limit admin notifications.
+
+Key routes and endpoints (summary)
+---------------------------------
+- Auth
+  - `POST /api/auth/login` — login (passport); sets session cookie
+  - `POST /api/auth/logout` — logout
+  - `GET /api/auth/me` — get current user
+- SOS
+  - `POST /api/sos` — create SOS (accepts nested `location` or top-level `lat`/`lng`); currently no auto-dispatch
+  - `GET /api/sos` — list SOS (user sees own; admin sees all)
+  - `PUT /api/sos/:id/status` — admin updates status
+- Resources
+  - `GET /api/resources` — list resources; supports `lat/lng` + `radius` to `$near` query
+  - `POST /api/resources` — create resource (admin)
+- Alerts
+  - `POST /api/alerts` — create alert (admin), supports `targetAudience: location-based` and `location` payloads
+  - `GET /api/alerts` — list alerts (location-based alerts filtered by user's location)
+  - `DELETE /api/alerts/:id` — deactivate alert (admin)
+- Dashboard
+  - `GET /admin/dashboard` — admin aggregates and pending SOS list
+
+Environment variables
+---------------------
+- `PORT` — port backend listens on (default 6001)
+- `MONGODB_URI` — connection string for MongoDB
+- `SESSION_SECRET` — secret for signing session cookies
+- `USE_REDIS_IN_DEV` — opt-in Redis for local dev (true/false)
+- `REDIS_URL` — ioredis connection string
+- `NODE_ENV` — `development`|`production`
+
+Run and dev instructions (quick)
+-------------------------------
+From `backend/`:
+
+  npm install
+  # set environment variables (MONGODB_URI, SESSION_SECRET, optionally USE_REDIS_IN_DEV and REDIS_URL)
+  npm run dev
+
+Notes:
+- If using session cookies from the frontend dev server (Vite), ensure `axios` or fetch is configured to send credentials and that the cookie domain/secure flags are correct for your environment.
+
+Testing & exported app
+-----------------------
+- `backend/server.js` exports the Express `app`, enabling tests to mount the app using `supertest` without starting a real HTTP server.
+- Add integration tests for critical flows: login, create SOS, create Alert, resource search. Use seeded test DB or in-memory Mongo instance (mongodb-memory-server) for CI.
+
+Deployment considerations
+-------------------------
+- Set `NODE_ENV=production` and enable HSTS and secure cookies in production.
+- Run MongoDB as managed service or your clustered setup; ensure `2dsphere` indices exist prior to queries.
+- Use Redis in production (sessions and job queues). In dev, keep `USE_REDIS_IN_DEV=false` until Redis command shapes are verified.
+
+Security checklist
+------------------
+- Use HTTPS in production and set cookie `secure: true`.
+- Keep `SESSION_SECRET` strong and rotate if necessary.
+- Ensure `app.set('trust proxy', 1)` if behind a proxy so throttling and IPs are correct.
+- Validate and sanitize request payloads; controllers include checks and Mongoose pre-validate hooks to avoid malformed GeoJSON inserts.
+
+Next recommended work items
+-------------------------
+1. Convert `SOS` to store GeoJSON `locationGeo` and add `2dsphere` index.
+2. Add a notification queue (BullMQ) and a worker to resolve nearest admins and deliver notifications asynchronously.
+3. Add integration tests and CI job to run them using an in-memory MongoDB or test DB.
+4. Add monitoring/alerting for rate-limiter and Redis errors.
+
+Files to inspect for details
+---------------------------
+- `backend/server.js`
+- `backend/models/User.js`, `backend/models/SOS.js`, `backend/models/Alert.js`, `backend/models/Resource.js`
+- `backend/controllers/sosController.js`, `backend/controllers/alertController.js`, `backend/controllers/resourceController.js`
+- `backend/routes/*` and `backend/config/swagger.js`
+
+End of backend overview.

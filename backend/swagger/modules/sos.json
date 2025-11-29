@@ -1,0 +1,25 @@
+{
+  "tags": [ { "name": "SOS", "description": "Emergency SOS reporting and management" } ],
+  "paths": {
+    "/api/sos": {
+      "post": {
+        "tags": ["SOS"],
+        "summary": "Create SOS report",
+        "security": [{ "sessionAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "type": { "type": "string" }, "description": { "type": "string" }, "location": { "type": "object", "properties": { "lat": { "type": "number" }, "lng": { "type": "number" }, "address": { "type": "string" } } } }, "required": ["type","description","location"] } } } },
+        "responses": { "201": { "description": "Created" }, "400": { "description": "Bad request" } }
+      },
+      "get": {
+        "tags": ["SOS"],
+        "summary": "List SOS reports (own for citizen, all for admin)",
+        "security": [{ "sessionAuth": [] }],
+        "parameters": [ { "name": "status", "in": "query", "schema": { "type": "string" } } ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/sos/{id}": {
+      "get": { "tags": ["SOS"], "summary": "Get SOS detail", "security": [{ "sessionAuth": [] }], "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ], "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } } },
+      "put": { "tags": ["SOS"], "summary": "Admin update SOS status", "security": [{ "sessionAuth": [] }], "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "type": "string" }, "adminNotes": { "type": "string" } } } } } }, "responses": { "200": { "description": "Updated" }, "404": { "description": "Not found" } } }
+    }
+  }
+}

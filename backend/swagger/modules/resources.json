@@ -1,0 +1,21 @@
+{
+  "tags": [ { "name": "Resources", "description": "Emergency resource management" } ],
+  "paths": {
+    "/api/resources": {
+      "get": {
+        "tags": ["Resources"],
+        "summary": "List resources; accepts optional lat,lng,radius for nearby search",
+        "parameters": [ { "name": "lat", "in": "query", "schema": { "type": "number" } }, { "name": "lng", "in": "query", "schema": { "type": "number" } }, { "name": "radius", "in": "query", "schema": { "type": "number", "default": 10 } } ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "tags": ["Resources"],
+        "summary": "Create resource (admin)",
+        "security": [{ "sessionAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "name": { "type": "string" }, "type": { "type": "string" }, "lat": { "type": "number" }, "lng": { "type": "number" }, "phone": { "type": "string" } }, "required": ["name","type","lat","lng","phone"] } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/resources/{id}": { "get": { "tags": ["Resources"], "summary": "Get resource", "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ], "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } } }, "put": { "tags": ["Resources"], "summary": "Update resource (admin)", "security": [{ "sessionAuth": [] }], "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ], "responses": { "200": { "description": "Updated" } } }, "delete": { "tags": ["Resources"], "summary": "Delete resource (soft delete)", "security": [{ "sessionAuth": [] }], "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ], "responses": { "200": { "description": "Deleted" } } } }
+  }
+}

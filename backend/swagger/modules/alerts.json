@@ -1,0 +1,18 @@
+{
+  "tags": [ { "name": "Alerts", "description": "Alert broadcasting and management" } ],
+  "paths": {
+    "/api/alerts": {
+      "post": {
+        "tags": ["Alerts"],
+        "summary": "Create/broadcast an alert (admin)",
+        "security": [{ "sessionAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "title": { "type": "string" }, "message": { "type": "string" }, "type": { "type": "string" }, "severity": { "type": "string" }, "targetAudience": { "type": "string" }, "location": { "type": "object" } }, "required": ["title","message","type"] } } } },
+        "responses": { "201": { "description": "Created" } }
+      },
+      "get": { "tags": ["Alerts"], "summary": "List alerts (location-based alerts near user if lat/lng available)", "security": [{ "sessionAuth": [] }], "responses": { "200": { "description": "OK" } } }
+    },
+    "/api/alerts/history": { "get": { "tags": ["Alerts"], "summary": "Admin alert history", "security": [{ "sessionAuth": [] }], "responses": { "200": { "description": "OK" } } } },
+    "/api/alerts/{id}": { "delete": { "tags": ["Alerts"], "summary": "Deactivate alert (admin)", "security": [{ "sessionAuth": [] }], "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ], "responses": { "200": { "description": "Deactivated" } } } },
+    "/api/alerts/{id}/read": { "put": { "tags": ["Alerts"], "summary": "Mark alert as read", "security": [{ "sessionAuth": [] }], "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ], "responses": { "200": { "description": "Marked" } } } }
+  }
+}

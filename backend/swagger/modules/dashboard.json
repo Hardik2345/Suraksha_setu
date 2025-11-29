@@ -1,0 +1,7 @@
+{
+  "tags": [ { "name": "Dashboard", "description": "Dashboard endpoints (admin)" } ],
+  "paths": {
+    "/api/dashboard/stats": { "get": { "tags": ["Dashboard"], "summary": "Get dashboard stats for user/admin", "security": [{ "sessionAuth": [] }], "responses": { "200": { "description": "OK" } } } },
+    "/api/admin/dashboard": { "get": { "tags": ["Dashboard"], "summary": "Admin aggregates and pending SOS", "security": [{ "sessionAuth": [] }], "responses": { "200": { "description": "OK" } } } }
+  }
+}
