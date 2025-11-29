@@ -82,7 +82,7 @@ export default function Sidebar({ open, onClose, variant = 'temporary' }: Sideba
       >
         <Box
           component="img"
-          src="/suraksha-setu-brand-logo-2.png"
+          src="/suraksha-setu-brand-logo.jpg"
           alt="Suraksha Setu"
           sx={{
             width: 36,
