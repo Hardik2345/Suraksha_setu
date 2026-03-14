@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Box, useMediaQuery, useTheme } from '@mui/material';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import { RoutedErrorBoundary } from '../common/ErrorBoundary';
 
 const DRAWER_WIDTH = 260;
 
@@ -53,7 +54,12 @@ export default function MainLayout() {
             overflow: 'auto',
           }}
         >
-          <Outlet />
+          <RoutedErrorBoundary
+            title="This screen ran into a problem."
+            description="The rest of the app is still available. Retry this page or move to another screen."
+          >
+            <Outlet />
+          </RoutedErrorBoundary>
         </Box>
       </Box>
     </Box>

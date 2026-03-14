@@ -232,31 +232,28 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 No alerts
               </Typography>
             </Box>
-          ) : (
-            <>
-              {alerts.slice(0, 3).map((alert) => (
-                <MenuItem key={alert._id} onClick={handleViewAlerts} sx={{ py: 1.5 }}>
-                  <Box sx={{ width: '100%' }}>
-                    <Typography variant="subtitle2" noWrap>
-                      {alert.title}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {alert.message}
-                    </Typography>
-                  </Box>
-                </MenuItem>
-              ))}
-              <Divider />
-              <MenuItem onClick={handleViewAlerts} sx={{ justifyContent: 'center' }}>
-                <Typography variant="body2" color="primary">
-                  View all alerts
-                </Typography>
+          ) : [
+            ...alerts.slice(0, 3).map((alert) => (
+              <MenuItem key={alert._id} onClick={handleViewAlerts} sx={{ py: 1.5 }}>
+                <Box sx={{ width: '100%' }}>
+                  <Typography variant="subtitle2" noWrap>
+                    {alert.title}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    {alert.message}
+                  </Typography>
+                </Box>
               </MenuItem>
-            </>
-          )}
+            )),
+            <Divider key="alerts-divider" />,
+            <MenuItem key="view-all-alerts" onClick={handleViewAlerts} sx={{ justifyContent: 'center' }}>
+              <Typography variant="body2" color="primary">
+                View all alerts
+              </Typography>
+            </MenuItem>,
+          ]}
         </Menu>
       </Toolbar>
     </AppBar>
   );
 }
-

@@ -3,6 +3,18 @@
 // ============================================================================
 
 // ---------------------- User Types ----------------------
+export interface GeoPoint {
+  type: 'Point';
+  coordinates: [number, number];
+}
+
+export interface GeoLocation extends GeoPoint {
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+}
+
 export interface User {
   _id: string;
   id?: string;
@@ -10,11 +22,7 @@ export interface User {
   email: string;
   phone?: string;
   role: 'citizen' | 'admin';
-  location?: {
-    lat: number;
-    lng: number;
-    address?: string;
-  };
+  location?: GeoLocation;
   createdAt?: string;
   isActive?: boolean;
 }
@@ -58,7 +66,12 @@ export interface ProfileResponse {
     name: string;
     email: string;
     role: 'citizen' | 'admin';
+    location?: GeoLocation;
   };
+}
+
+export interface UpdateLocationRequest {
+  location: GeoLocation;
 }
 
 // ---------------------- SOS Types ----------------------
@@ -66,11 +79,7 @@ export type SOSType = 'flood' | 'fire' | 'earthquake' | 'medical' | 'accident' |
 export type SOSSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type SOSStatus = 'pending' | 'acknowledged' | 'in-progress' | 'resolved';
 
-export interface SOSLocation {
-  lat: number;
-  lng: number;
-  address?: string;
-}
+export interface SOSLocation extends GeoLocation {}
 
 export interface SOS {
   _id: string;
@@ -162,8 +171,7 @@ export interface Resource {
 export interface ResourceListParams {
   type?: ResourceType;
   search?: string;
-  lat?: number;
-  lng?: number;
+  coordinates?: [number, number];
   radius?: number;
 }
 
@@ -181,12 +189,7 @@ export interface ResourceDetailResponse {
 export interface CreateResourceRequest {
   name: string;
   type: ResourceType;
-  address: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  lat: number;
-  lng: number;
+  location: ResourceLocation;
   phone: string;
   email?: string;
   website?: string;
@@ -198,12 +201,7 @@ export interface CreateResourceRequest {
 export interface UpdateResourceRequest {
   name?: string;
   type?: ResourceType;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  lat?: number;
-  lng?: number;
+  location?: ResourceLocation;
   phone?: string;
   email?: string;
   website?: string;
@@ -222,6 +220,7 @@ export type AlertTargetAudience = 'all' | 'location-based' | 'admin-only';
 export interface AlertLocation {
   type: 'Point';
   coordinates: [number, number];
+  address?: string;
   radius?: number;
   city?: string;
   state?: string;
@@ -254,8 +253,6 @@ export interface CreateAlertRequest {
   type: AlertType;
   severity?: AlertSeverity;
   targetAudience?: AlertTargetAudience;
-  lat?: number;
-  lng?: number;
   radius?: number;
   city?: string;
   state?: string;
@@ -302,5 +299,4 @@ export interface SuccessResponse {
   success: boolean;
   message: string;
 }
-
 

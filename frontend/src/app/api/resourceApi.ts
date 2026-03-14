@@ -12,16 +12,15 @@ export const resourceApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     /**
      * GET /api/resources
-     * List resources; accepts optional lat,lng,radius for nearby search
-     * Query params: type, search, lat, lng, radius
+     * List resources; accepts optional coordinates,radius for nearby search
+     * Query params: type, search, coordinates, radius
      */
     getResources: builder.query<ResourceListResponse, ResourceListParams | void>({
       query: (params) => {
         const searchParams = new URLSearchParams();
         if (params?.type) searchParams.append('type', params.type);
         if (params?.search) searchParams.append('search', params.search);
-        if (params?.lat !== undefined) searchParams.append('lat', params.lat.toString());
-        if (params?.lng !== undefined) searchParams.append('lng', params.lng.toString());
+        if (params?.coordinates) searchParams.append('coordinates', params.coordinates.join(','));
         if (params?.radius !== undefined) searchParams.append('radius', params.radius.toString());
         const queryString = searchParams.toString();
         return `/resources${queryString ? `?${queryString}` : ''}`;

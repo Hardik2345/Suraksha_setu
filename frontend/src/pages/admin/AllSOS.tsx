@@ -212,19 +212,19 @@ export default function AllSOS() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {typeof sos.userId === 'object'
-                            ? (sos.userId as User).name
+                          {sos.userId && typeof sos.userId === 'object'
+                            ? (sos.userId as User).name || 'Unknown'
                             : 'Unknown'}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {typeof sos.userId === 'object'
+                          {sos.userId && typeof sos.userId === 'object'
                             ? (sos.userId as User).phone || (sos.userId as User).email
                             : ''}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
-                          {sos.location?.address || `${sos.location?.lat?.toFixed(4)}, ${sos.location?.lng?.toFixed(4)}`}
+                          {sos.location?.address || `${sos.location?.coordinates?.[1]?.toFixed(4)}, ${sos.location?.coordinates?.[0]?.toFixed(4)}`}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -314,4 +314,3 @@ export default function AllSOS() {
     </Box>
   );
 }
-

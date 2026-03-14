@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -9,6 +10,7 @@ import {
   Chip,
   Skeleton,
   Alert,
+  CircularProgress,
   List,
   ListItem,
   ListItemText,
@@ -22,11 +24,13 @@ import {
   Add as AddIcon,
   LocalHospital as HospitalIcon,
   Notifications as AlertIcon,
+  MyLocation as LocationIcon,
 } from '@mui/icons-material';
-import { useGetCitizenDashboardQuery, useGetAlertsQuery } from '../../app/api';
+import { useGetCitizenDashboardQuery, useGetAlertsQuery, useUpdateLocationMutation } from '../../app/api';
 import { useAppSelector } from '../../app/hooks';
 import { selectCurrentUser } from '../../features/auth/authSlice';
-import type { SOSStatus, Alert as AlertType } from '../../types';
+import { hasUsableLocation } from '../../shared/lib/location';
+import type { SOSStatus, Alert as AlertType, GeoLocation } from '../../types';
 
 const statusColors: Record<SOSStatus, 'warning' | 'info' | 'primary' | 'success'> = {
   pending: 'warning',
@@ -45,6 +49,8 @@ const statusIcons: Record<SOSStatus, React.ReactNode> = {
 export default function CitizenDashboard() {
   const navigate = useNavigate();
   const user = useAppSelector(selectCurrentUser);
+  const [updateLocation, { isLoading: isSavingLocation }] = useUpdateLocationMutation();
+  const [locationError, setLocationError] = useState('');
 
   const { data: dashboardData, isLoading, error } = useGetCitizenDashboardQuery();
   const { data: alertsData } = useGetAlertsQuery();
@@ -52,6 +58,34 @@ export default function CitizenDashboard() {
   const stats = dashboardData?.data?.stats;
   const recentSOS = dashboardData?.data?.recentSOS || [];
   const alerts = alertsData?.data || [];
+  const needsLocation = !hasUsableLocation(user?.location);
+
+  const handleEnableLocationAlerts = () => {
+    setLocationError('');
+
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported in this browser context.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const location: GeoLocation = {
+            type: 'Point',
+            coordinates: [position.coords.longitude, position.coords.latitude],
+          };
+          await updateLocation({ location }).unwrap();
+        } catch {
+          setLocationError('Failed to save your location. Please try again.');
+        }
+      },
+      (geoError) => {
+        setLocationError(`Location access failed: ${geoError.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    );
+  };
 
   if (error) {
     return (
@@ -72,6 +106,32 @@ export default function CitizenDashboard() {
           Your emergency dashboard overview
         </Typography>
       </Box>
+
+      {needsLocation && (
+        <Alert
+          severity="info"
+          sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              startIcon={isSavingLocation ? <CircularProgress size={16} color="inherit" /> : <LocationIcon />}
+              onClick={handleEnableLocationAlerts}
+              disabled={isSavingLocation}
+            >
+              {isSavingLocation ? 'Saving...' : 'Use Current Location'}
+            </Button>
+          }
+        >
+          Enable location access to receive location-based alerts.
+        </Alert>
+      )}
+
+      {locationError && (
+        <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+          {locationError}
+        </Alert>
+      )}
 
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -313,4 +373,3 @@ export default function CitizenDashboard() {
     </Box>
   );
 }
-

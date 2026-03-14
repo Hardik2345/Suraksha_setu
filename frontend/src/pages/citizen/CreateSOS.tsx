@@ -23,6 +23,9 @@ import {
 import { useCreateSOSMutation } from '../../app/api';
 import type { SOSType, SOSSeverity, ApiError } from '../../types';
 
+const formatCoordinateInput = (coordinates?: [number, number], index?: 0 | 1) =>
+  coordinates && index !== undefined ? coordinates[index] : '';
+
 const sosTypes: { value: SOSType; label: string; icon: string }[] = [
   { value: 'flood', label: 'Flood', icon: '🌊' },
   { value: 'fire', label: 'Fire', icon: '🔥' },
@@ -47,8 +50,11 @@ export default function CreateSOS() {
     type: '' as SOSType | '',
     severity: 'high' as SOSSeverity,
     description: '',
-    lat: 0,
-    lng: 0,
+    location: {
+      type: 'Point' as const,
+      coordinates: [0, 0] as [number, number],
+      address: '',
+    },
     address: '',
     contactNumber: '',
   });
@@ -75,8 +81,10 @@ export default function CreateSOS() {
       (position) => {
         setFormData((prev) => ({
           ...prev,
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
+          location: {
+            ...prev.location,
+            coordinates: [position.coords.longitude, position.coords.latitude],
+          },
         }));
         setLocationLoading(false);
       },
@@ -102,7 +110,7 @@ export default function CreateSOS() {
       return;
     }
 
-    if (!formData.lat || !formData.lng) {
+    if (!formData.location.coordinates[0] || !formData.location.coordinates[1]) {
       setError('Location is required. Please enable location services.');
       return;
     }
@@ -113,8 +121,8 @@ export default function CreateSOS() {
         description: formData.description,
         severity: formData.severity,
         location: {
-          lat: formData.lat,
-          lng: formData.lng,
+          type: 'Point',
+          coordinates: formData.location.coordinates,
           address: formData.address || undefined,
         },
         contactNumber: formData.contactNumber || undefined,
@@ -229,12 +237,18 @@ export default function CreateSOS() {
                   fullWidth
                   label="Latitude"
                   type="number"
-                  value={formData.lat || ''}
-                  onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) })}
-                  disabled={locationLoading}
-                  InputProps={{
-                    readOnly: true,
+                  value={formatCoordinateInput(formData.location.coordinates, 1)}
+                  onChange={(e) => {
+                    const nextLat = parseFloat(e.target.value);
+                    setFormData({
+                      ...formData,
+                      location: {
+                        ...formData.location,
+                        coordinates: [formData.location.coordinates[0], nextLat],
+                      },
+                    });
                   }}
+                  disabled={locationLoading}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
@@ -243,12 +257,18 @@ export default function CreateSOS() {
                   fullWidth
                   label="Longitude"
                   type="number"
-                  value={formData.lng || ''}
-                  onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) })}
-                  disabled={locationLoading}
-                  InputProps={{
-                    readOnly: true,
+                  value={formatCoordinateInput(formData.location.coordinates, 0)}
+                  onChange={(e) => {
+                    const nextLng = parseFloat(e.target.value);
+                    setFormData({
+                      ...formData,
+                      location: {
+                        ...formData.location,
+                        coordinates: [nextLng, formData.location.coordinates[1]],
+                      },
+                    });
                   }}
+                  disabled={locationLoading}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
               </Grid>
@@ -327,4 +347,3 @@ export default function CreateSOS() {
     </Box>
   );
 }
-

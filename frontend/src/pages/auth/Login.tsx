@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -19,16 +19,18 @@ import {
   Email as EmailIcon,
   Lock as LockIcon,
 } from '@mui/icons-material';
-import { useLoginMutation, useLazyGetProfileQuery } from '../../app/api';
+import { useLoginMutation, useLazyGetProfileQuery, useUpdateLocationMutation } from '../../app/api';
 import { useAppSelector } from '../../app/hooks';
 import { selectIsAuthenticated, selectCurrentUser } from '../../features/auth/authSlice';
-import type { ApiError } from '../../types';
+import { hasUsableLocation } from '../../shared/lib/location';
+import type { ApiError, GeoLocation } from '../../types';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [login, { isLoading }] = useLoginMutation();
   const [getProfile] = useLazyGetProfileQuery();
+  const [updateLocation] = useUpdateLocationMutation();
 
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectCurrentUser);
@@ -40,12 +42,31 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
-  // Redirect if already authenticated
-  if (isAuthenticated && user) {
-    const from = (location.state as { from?: Location })?.from?.pathname || 
+  const captureCurrentLocation = () =>
+    new Promise<GeoLocation | null>((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({
+          type: 'Point',
+          coordinates: [position.coords.longitude, position.coords.latitude],
+        }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+      );
+    });
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ||
       (user.role === 'admin' ? '/admin/dashboard' : '/dashboard');
+
     navigate(from, { replace: true });
-  }
+  }, [isAuthenticated, user, location.state, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -57,17 +78,14 @@ export default function Login() {
     }
 
     try {
-      const result = await login(formData).unwrap();
-      
-      // Refetch profile to update auth state
-      await getProfile().unwrap();
-      
-      // Redirect based on role
-      const from = (location.state as { from?: Location })?.from?.pathname;
-      if (from) {
-        navigate(from, { replace: true });
-      } else {
-        navigate(result.user.role === 'admin' ? '/admin/dashboard' : '/dashboard', { replace: true });
+      await login(formData).unwrap();
+      const profile = await getProfile().unwrap();
+
+      if (profile.user.role === 'citizen' && !hasUsableLocation(profile.user.location)) {
+        const currentLocation = await captureCurrentLocation();
+        if (currentLocation) {
+          await updateLocation({ location: currentLocation }).unwrap();
+        }
       }
     } catch (err) {
       const apiError = err as { data?: ApiError };
@@ -250,4 +268,3 @@ export default function Login() {
     </Box>
   );
 }
-

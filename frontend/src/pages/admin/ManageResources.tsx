@@ -40,6 +40,15 @@ import {
 } from '../../app/api';
 import type { ResourceType, Resource, CreateResourceRequest, ApiError } from '../../types';
 
+const emptyResourceLocation = {
+  type: 'Point' as const,
+  coordinates: [0, 0] as [number, number],
+  address: '',
+  city: '',
+  state: '',
+  pincode: '',
+};
+
 const resourceTypes: { value: ResourceType; label: string; icon: React.ReactNode }[] = [
   { value: 'hospital', label: 'Hospital', icon: <HospitalIcon /> },
   { value: 'shelter', label: 'Shelter', icon: <ShelterIcon /> },
@@ -61,12 +70,7 @@ const typeIcons: Record<ResourceType, React.ReactNode> = {
 const initialFormData: CreateResourceRequest = {
   name: '',
   type: 'hospital',
-  address: '',
-  city: '',
-  state: '',
-  pincode: '',
-  lat: 0,
-  lng: 0,
+  location: emptyResourceLocation,
   phone: '',
   email: '',
   website: '',
@@ -101,12 +105,14 @@ export default function ManageResources() {
     setFormData({
       name: resource.name,
       type: resource.type,
-      address: resource.location?.address || '',
-      city: resource.location?.city || '',
-      state: resource.location?.state || '',
-      pincode: resource.location?.pincode || '',
-      lat: resource.location?.coordinates?.[1] || 0,
-      lng: resource.location?.coordinates?.[0] || 0,
+      location: {
+        type: 'Point',
+        coordinates: resource.location?.coordinates || [0, 0],
+        address: resource.location?.address || '',
+        city: resource.location?.city || '',
+        state: resource.location?.state || '',
+        pincode: resource.location?.pincode || '',
+      },
       phone: resource.contact?.phone || '',
       email: resource.contact?.email || '',
       website: resource.contact?.website || '',
@@ -128,12 +134,12 @@ export default function ManageResources() {
   const handleSubmit = async () => {
     setFormError('');
 
-    if (!formData.name || !formData.type || !formData.address || !formData.phone) {
+    if (!formData.name || !formData.type || !formData.location.address || !formData.phone) {
       setFormError('Please fill in all required fields');
       return;
     }
 
-    if (!formData.lat || !formData.lng) {
+    if (!formData.location.coordinates[0] || !formData.location.coordinates[1]) {
       setFormError('Please provide latitude and longitude');
       return;
     }
@@ -339,32 +345,32 @@ export default function ManageResources() {
               <TextField
                 fullWidth
                 label="Address *"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                value={formData.location.address}
+                onChange={(e) => setFormData({ ...formData, location: { ...formData.location, address: e.target.value } })}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 fullWidth
                 label="City"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                value={formData.location.city}
+                onChange={(e) => setFormData({ ...formData, location: { ...formData.location, city: e.target.value } })}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 fullWidth
                 label="State"
-                value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                value={formData.location.state}
+                onChange={(e) => setFormData({ ...formData, location: { ...formData.location, state: e.target.value } })}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 fullWidth
                 label="Pincode"
-                value={formData.pincode}
-                onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                value={formData.location.pincode}
+                onChange={(e) => setFormData({ ...formData, location: { ...formData.location, pincode: e.target.value } })}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -372,8 +378,8 @@ export default function ManageResources() {
                 fullWidth
                 label="Latitude *"
                 type="number"
-                value={formData.lat || ''}
-                onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) })}
+                value={formData.location.coordinates[1] || ''}
+                onChange={(e) => setFormData({ ...formData, location: { ...formData.location, coordinates: [formData.location.coordinates[0], parseFloat(e.target.value)] } })}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -381,8 +387,8 @@ export default function ManageResources() {
                 fullWidth
                 label="Longitude *"
                 type="number"
-                value={formData.lng || ''}
-                onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) })}
+                value={formData.location.coordinates[0] || ''}
+                onChange={(e) => setFormData({ ...formData, location: { ...formData.location, coordinates: [parseFloat(e.target.value), formData.location.coordinates[1]] } })}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>

@@ -433,30 +433,9 @@ app.use(cors({
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }));
 
-// Mount routes with proper /api prefixes to match Swagger documentation
-const authRoutes = require('./routes/auth');
-app.use('/api/auth', authRoutes);
-
-const sosRoutes = require('./routes/sos');
-app.use('/api/sos', sosRoutes);
-
-const dashboardRoutes = require('./routes/dashboard');
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', dashboardRoutes);
-
-try {
-  const resourceRoutes = require('./routes/resource');
-  app.use('/api/resources', resourceRoutes);
-} catch (e) {
-  console.warn('Resource routes could not be mounted:', e.message);
-}
-
-try {
-  const alertRoutes = require('./routes/alert');
-  app.use('/api/alerts', alertRoutes);
-} catch (e) {
-  console.warn('Alert routes could not be mounted:', e.message);
-}
+// Mount routes through the module registrar so feature modules can migrate incrementally.
+const { registerModules } = require('./src/app/http/registerModules');
+registerModules(app);
 
 // Mount Swagger UI (if available) BEFORE error handlers so docs render
 if (swaggerUi && swaggerSpec) {
@@ -478,6 +457,8 @@ app.use((req, res, next) => {
 
 // Global error handler
 app.use(globalErrorHandler);
+
+console.log(process.env.NODE_ENV, process.env.DATABASE, process.env.DATABASE_PASSWORD);
 
 const DB = process.env.DATABASE.replace(
   "<db_password>",

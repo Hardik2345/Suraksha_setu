@@ -1,12 +1,14 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { authApi } from '../../app/api/authApi';
+import type { GeoLocation } from '../../types';
 
 interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: 'citizen' | 'admin';
+  location?: GeoLocation;
 }
 
 interface AuthState {
@@ -44,20 +46,12 @@ const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Handle login success
-    builder.addMatcher(
-      authApi.endpoints.login.matchFulfilled,
-      (state, { payload }) => {
-        state.user = {
-          id: payload.user.id,
-          name: payload.user.name,
-          email: payload.user.email,
-          role: payload.user.role,
-        };
-        state.isAuthenticated = true;
-        state.isLoading = false;
-      }
-    );
+    // Login only validates credentials and sets the session cookie.
+    // The app becomes authenticated only after getProfile succeeds.
+    builder.addMatcher(authApi.endpoints.login.matchFulfilled, (state) => {
+      state.isLoading = false;
+      state.isInitialized = false;
+    });
 
     // Handle login pending
     builder.addMatcher(authApi.endpoints.login.matchPending, (state) => {
@@ -73,6 +67,7 @@ const authSlice = createSlice({
     builder.addMatcher(authApi.endpoints.logout.matchFulfilled, (state) => {
       state.user = null;
       state.isAuthenticated = false;
+      state.isInitialized = true;
       state.isLoading = false;
     });
 
@@ -85,6 +80,7 @@ const authSlice = createSlice({
           name: payload.user.name,
           email: payload.user.email,
           role: payload.user.role,
+          location: payload.user.location,
         };
         state.isAuthenticated = true;
         state.isInitialized = true;
@@ -96,6 +92,15 @@ const authSlice = createSlice({
     builder.addMatcher(authApi.endpoints.getProfile.matchPending, (state) => {
       state.isLoading = true;
     });
+
+    builder.addMatcher(
+      authApi.endpoints.updateLocation.matchFulfilled,
+      (state, { payload }) => {
+        if (state.user) {
+          state.user.location = payload.user.location;
+        }
+      }
+    );
 
     // Handle getProfile rejected (user not logged in)
     builder.addMatcher(authApi.endpoints.getProfile.matchRejected, (state) => {
@@ -117,4 +122,3 @@ export const selectIsLoading = (state: { auth: AuthState }) => state.auth.isLoad
 export const selectIsInitialized = (state: { auth: AuthState }) => state.auth.isInitialized;
 export const selectIsAdmin = (state: { auth: AuthState }) => state.auth.user?.role === 'admin';
 export const selectIsCitizen = (state: { auth: AuthState }) => state.auth.user?.role === 'citizen';
-

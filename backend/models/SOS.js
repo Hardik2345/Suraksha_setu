@@ -7,15 +7,36 @@ const sosSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending','acknowledged','in-progress','resolved'], default: 'pending' },
   description: { type: String, required: true, maxlength: 500 },
   location: {
-    lat: { type: Number, required: true },
-    lng: { type: Number, required: true },
-    address: String
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+      required: true
+    },
+    coordinates: {
+      type: [Number],
+      required: true
+    },
+    address: String,
+    city: String,
+    state: String,
+    pincode: String
   },
   contactNumber: { type: String },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   resolvedAt: Date,
   adminNotes: String
+});
+
+sosSchema.index({ location: '2dsphere' });
+
+sosSchema.pre('validate', function(next) {
+  const coords = this.location?.coordinates;
+  if (!Array.isArray(coords) || coords.length !== 2 || coords.some(c => c === null || c === undefined || Number.isNaN(Number(c)))) {
+    return next(new Error('SOS location must be a valid GeoJSON Point'));
+  }
+  next();
 });
 
 sosSchema.pre('save', function(next) {

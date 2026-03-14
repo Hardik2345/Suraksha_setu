@@ -57,7 +57,7 @@ const typeIcons: Record<ResourceType, React.ReactNode> = {
 export default function ResourceDirectory() {
   const [typeFilter, setTypeFilter] = useState<ResourceType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [radius, setRadius] = useState(10);
   const [useNearby, setUseNearby] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -66,8 +66,7 @@ export default function ResourceDirectory() {
     {
       type: typeFilter === 'all' ? undefined : typeFilter,
       search: searchQuery || undefined,
-      lat: useNearby && userLocation ? userLocation.lat : undefined,
-      lng: useNearby && userLocation ? userLocation.lng : undefined,
+      coordinates: useNearby && userLocation ? userLocation : undefined,
       radius: useNearby ? radius : undefined,
     },
     { refetchOnMountOrArgChange: true }
@@ -84,10 +83,7 @@ export default function ResourceDirectory() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
+        setUserLocation([position.coords.longitude, position.coords.latitude]);
         setLocationLoading(false);
         setUseNearby(true);
       },
@@ -348,5 +344,4 @@ export default function ResourceDirectory() {
     </Box>
   );
 }
-
 

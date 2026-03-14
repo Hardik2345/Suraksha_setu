@@ -10,7 +10,7 @@ export const alertApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     /**
      * GET /api/alerts
-     * List alerts (location-based alerts near user if lat/lng available)
+     * List alerts (location-based alerts near user if GeoJSON location is available)
      */
     getAlerts: builder.query<AlertListResponse, void>({
       query: () => '/alerts',

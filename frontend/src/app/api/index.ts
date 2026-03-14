@@ -8,6 +8,7 @@ export {
   useLogoutMutation,
   useGetProfileQuery,
   useLazyGetProfileQuery,
+  useUpdateLocationMutation,
 } from './authApi';
 
 export {

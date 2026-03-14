@@ -203,13 +203,13 @@ export default function SOSDetail() {
                       </Typography>
                     )}
                     <Typography variant="body2" color="text.secondary">
-                      Coordinates: {sos.location?.lat?.toFixed(6)}, {sos.location?.lng?.toFixed(6)}
+                      Coordinates: {sos.location?.coordinates?.[1]?.toFixed(6)}, {sos.location?.coordinates?.[0]?.toFixed(6)}
                     </Typography>
                     <Button
                       size="small"
                       variant="outlined"
                       sx={{ mt: 1, textTransform: 'none' }}
-                      onClick={() => window.open(`https://www.google.com/maps?q=${sos.location?.lat},${sos.location?.lng}`, '_blank')}
+                      onClick={() => window.open(`https://www.google.com/maps?q=${sos.location?.coordinates?.[1]},${sos.location?.coordinates?.[0]}`, '_blank')}
                     >
                       View on Map
                     </Button>
@@ -239,7 +239,7 @@ export default function SOSDetail() {
                     </Box>
                   </Box>
                 )}
-                {typeof sos.userId === 'object' && (sos.userId as User).name && (
+                {sos.userId && typeof sos.userId === 'object' && (sos.userId as User).name && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <PersonIcon color="action" />
                     <Box>
@@ -278,4 +278,3 @@ export default function SOSDetail() {
     </Box>
   );
 }
-

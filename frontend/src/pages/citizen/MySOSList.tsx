@@ -204,7 +204,7 @@ export default function MySOSList() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                          {sos.location?.address || `${sos.location?.lat?.toFixed(4)}, ${sos.location?.lng?.toFixed(4)}`}
+                          {sos.location?.address || `${sos.location?.coordinates?.[1]?.toFixed(4)}, ${sos.location?.coordinates?.[0]?.toFixed(4)}`}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -237,4 +237,3 @@ export default function MySOSList() {
     </Box>
   );
 }
-

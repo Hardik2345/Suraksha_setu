@@ -266,8 +266,8 @@ export default function AdminDashboard() {
                           />
                         </TableCell>
                         <TableCell>
-                          {typeof sos.userId === 'object'
-                            ? (sos.userId as { name?: string }).name || 'Unknown'
+                          {sos.userId && typeof sos.userId === 'object'
+                            ? (sos.userId as { name?: string | null }).name || 'Unknown'
                             : 'Unknown'}
                         </TableCell>
                         <TableCell>

@@ -5,6 +5,7 @@ import type {
   RegisterRequest,
   RegisterResponse,
   ProfileResponse,
+  UpdateLocationRequest,
   SuccessResponse,
 } from '../../types';
 
@@ -55,6 +56,15 @@ export const authApi = baseApi.injectEndpoints({
       query: () => '/auth/profile',
       providesTags: ['User'],
     }),
+
+    updateLocation: builder.mutation<ProfileResponse & { message: string }, UpdateLocationRequest>({
+      query: (body) => ({
+        url: '/auth/location',
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['User', 'Alert', 'Dashboard'],
+    }),
   }),
   overrideExisting: false,
 });
@@ -65,5 +75,5 @@ export const {
   useLogoutMutation,
   useGetProfileQuery,
   useLazyGetProfileQuery,
+  useUpdateLocationMutation,
 } = authApi;
-

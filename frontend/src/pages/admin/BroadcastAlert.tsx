@@ -65,11 +65,13 @@ export default function BroadcastAlert() {
     type: 'general' as AlertType,
     severity: 'info' as AlertSeverity,
     targetAudience: 'all' as AlertTargetAudience,
-    lat: 0,
-    lng: 0,
+    location: {
+      type: 'Point' as const,
+      coordinates: [0, 0] as [number, number],
+      city: '',
+      state: '',
+    },
     radius: 10,
-    city: '',
-    state: '',
     expiryHours: 24,
   });
   const [error, setError] = useState('');
@@ -88,8 +90,10 @@ export default function BroadcastAlert() {
       (position) => {
         setFormData((prev) => ({
           ...prev,
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
+          location: {
+            ...prev.location,
+            coordinates: [position.coords.longitude, position.coords.latitude],
+          },
         }));
         setLocationLoading(false);
       },
@@ -110,7 +114,7 @@ export default function BroadcastAlert() {
       return;
     }
 
-    if (formData.targetAudience === 'location-based' && (!formData.lat || !formData.lng)) {
+    if (formData.targetAudience === 'location-based' && (!formData.location.coordinates[0] || !formData.location.coordinates[1])) {
       setError('Location coordinates are required for location-based alerts');
       return;
     }
@@ -122,12 +126,19 @@ export default function BroadcastAlert() {
         type: formData.type,
         severity: formData.severity,
         targetAudience: formData.targetAudience,
-        lat: formData.targetAudience === 'location-based' ? formData.lat : undefined,
-        lng: formData.targetAudience === 'location-based' ? formData.lng : undefined,
         radius: formData.targetAudience === 'location-based' ? formData.radius : undefined,
-        city: formData.city || undefined,
-        state: formData.state || undefined,
+        city: formData.location.city || undefined,
+        state: formData.location.state || undefined,
         expiryHours: formData.expiryHours,
+        location: formData.targetAudience === 'location-based'
+          ? {
+              type: 'Point',
+              coordinates: formData.location.coordinates,
+              radius: formData.radius,
+              city: formData.location.city || undefined,
+              state: formData.location.state || undefined,
+            }
+          : undefined,
       }).unwrap();
 
       setSuccess('Alert broadcast successfully!');
@@ -139,11 +150,13 @@ export default function BroadcastAlert() {
         type: 'general',
         severity: 'info',
         targetAudience: 'all',
-        lat: 0,
-        lng: 0,
+        location: {
+          type: 'Point',
+          coordinates: [0, 0] as [number, number],
+          city: '',
+          state: '',
+        },
         radius: 10,
-        city: '',
-        state: '',
         expiryHours: 24,
       });
 
@@ -372,8 +385,8 @@ export default function BroadcastAlert() {
                       fullWidth
                       label="Latitude"
                       type="number"
-                      value={formData.lat || ''}
-                      onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) })}
+                      value={formData.location.coordinates[1] || ''}
+                      onChange={(e) => setFormData({ ...formData, location: { ...formData.location, coordinates: [formData.location.coordinates[0], parseFloat(e.target.value)] } })}
                       disabled={locationLoading}
                     />
                   </Grid>
@@ -382,8 +395,8 @@ export default function BroadcastAlert() {
                       fullWidth
                       label="Longitude"
                       type="number"
-                      value={formData.lng || ''}
-                      onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) })}
+                      value={formData.location.coordinates[0] || ''}
+                      onChange={(e) => setFormData({ ...formData, location: { ...formData.location, coordinates: [parseFloat(e.target.value), formData.location.coordinates[1]] } })}
                       disabled={locationLoading}
                     />
                   </Grid>
@@ -400,16 +413,16 @@ export default function BroadcastAlert() {
                     <TextField
                       fullWidth
                       label="City"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      value={formData.location.city}
+                      onChange={(e) => setFormData({ ...formData, location: { ...formData.location, city: e.target.value } })}
                     />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
                       label="State"
-                      value={formData.state}
-                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      value={formData.location.state}
+                      onChange={(e) => setFormData({ ...formData, location: { ...formData.location, state: e.target.value } })}
                     />
                   </Grid>
                   {useLocation && (
@@ -456,4 +469,3 @@ export default function BroadcastAlert() {
     </Box>
   );
 }
-

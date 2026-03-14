@@ -21,7 +21,6 @@ import {
   Lock as LockIcon,
   Person as PersonIcon,
   Phone as PhoneIcon,
-  Shield as ShieldIcon,
 } from '@mui/icons-material';
 import { useRegisterMutation } from '../../app/api';
 import type { ApiError } from '../../types';
@@ -102,20 +101,18 @@ export default function Register() {
           {/* Logo/Header */}
           <Box sx={{ textAlign: 'center', mb: 3 }}>
             <Box
+              component="img"
+              src="/suraksha-setu-brand-logo.jpg"
+              alt="Suraksha Setu"
               sx={{
-                width: 64,
-                height: 64,
+                width: 80,
+                height: 80,
                 borderRadius: '50%',
-                backgroundColor: '#ea580c',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 margin: '0 auto 16px',
-                boxShadow: '0 4px 20px rgba(233, 69, 96, 0.4)',
+                objectFit: 'cover',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
               }}
-            >
-              <ShieldIcon sx={{ fontSize: 32, color: 'white' }} />
-            </Box>
+            />
             <Typography
               variant="h4"
               sx={{
@@ -277,11 +274,11 @@ export default function Register() {
                 fontWeight: 600,
                 fontSize: '1rem',
                 textTransform: 'none',
-                backgroundColor: '#ea580c',
-                boxShadow: '0 4px 15px rgba(233, 69, 96, 0.4)',
+                backgroundColor: '#1e293b',
+                boxShadow: '0 4px 15px rgba(30, 41, 59, 0.4)',
                 '&:hover': {
-                  backgroundColor: '#c2410c',
-                  boxShadow: '0 6px 20px rgba(233, 69, 96, 0.5)',
+                  backgroundColor: '#0f172a',
+                  boxShadow: '0 6px 20px rgba(30, 41, 59, 0.5)',
                 },
                 '&:disabled': {
                   background: '#ccc',
@@ -302,11 +299,12 @@ export default function Register() {
                   component={RouterLink}
                   to="/login"
                   sx={{
-                    color: '#ea580c',
+                    color: '#1e293b',
                     fontWeight: 600,
                     textDecoration: 'none',
                     '&:hover': {
                       textDecoration: 'underline',
+                      color: '#0f172a',
                     },
                   }}
                 >
