@@ -16,6 +16,7 @@ import type { GeoLocation } from './types';
 import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import NotificationProvider from './components/common/NotificationProvider';
+import RealtimeAlertListener from './components/realtime/RealtimeAlertListener';
 import { AppErrorBoundary, RoutedErrorBoundary } from './components/common/ErrorBoundary';
 
 // Auth Pages
@@ -79,6 +80,7 @@ function AppRoutes() {
     <BrowserRouter>
       <AppErrorBoundary>
         <AuthInitializer>
+          <RealtimeAlertListener />
           <Routes>
             {/* Public Routes */}
             <Route

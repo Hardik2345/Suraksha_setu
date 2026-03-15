@@ -45,6 +45,7 @@ const flash = require('connect-flash');
 const passport = require('./config/passport');
 const path = require('path');
 const http = require("http")
+const { initAlertsGateway } = require('./src/shared/realtime/alerts.gateway');
 const AppError = require('./utils/appError.js');
 const globalErrorHandler = require('./controllers/errorController');
 require("dotenv").config()
@@ -279,7 +280,7 @@ if (ConnectRedis && redisClient) {
   }
 }
 
-app.use(session({
+const sessionMiddleware = session({
   store: sessionStoreInstance,
   secret: process.env.SESSION_SECRET || 'change-this-in-production',
   resave: false,
@@ -289,7 +290,8 @@ app.use(session({
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 * 7
   }
-}));
+});
+app.use(sessionMiddleware);
 
 // Initialize passport & flash
 app.use(passport.initialize());
@@ -436,6 +438,12 @@ app.use(express.urlencoded({ extended: true }));
 // Mount routes through the module registrar so feature modules can migrate incrementally.
 const { registerModules } = require('./src/app/http/registerModules');
 registerModules(app);
+
+initAlertsGateway({
+  server,
+  sessionMiddleware,
+  allowedOrigins,
+});
 
 // Mount Swagger UI (if available) BEFORE error handlers so docs render
 if (swaggerUi && swaggerSpec) {

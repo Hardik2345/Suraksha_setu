@@ -1,25 +1,6 @@
 const Alert = require('../../../../models/Alert');
-
-function toRadians(value) {
-  return (value * Math.PI) / 180;
-}
-
-function distanceInMeters(fromCoordinates, toCoordinates) {
-  const [fromLng, fromLat] = fromCoordinates.map(Number);
-  const [toLng, toLat] = toCoordinates.map(Number);
-
-  const earthRadiusMeters = 6371000;
-  const deltaLat = toRadians(toLat - fromLat);
-  const deltaLng = toRadians(toLng - fromLng);
-  const a =
-    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-    Math.cos(toRadians(fromLat)) *
-      Math.cos(toRadians(toLat)) *
-      Math.sin(deltaLng / 2) *
-      Math.sin(deltaLng / 2);
-
-  return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+const eventBus = require('../../../shared/events/eventBus');
+const { hasCoordinates, distanceInMeters } = require('../domain/alertAudience');
 
 async function listAlertsForUser(user) {
   let query = { isActive: true, expiresAt: { $gt: new Date() } };
@@ -30,9 +11,7 @@ async function listAlertsForUser(user) {
 
   if (
     user &&
-    user.location &&
-    Array.isArray(user.location.coordinates) &&
-    user.location.coordinates.length === 2
+    hasCoordinates(user.location)
   ) {
     const candidateLocationAlerts = await Alert.find({
       ...query,
@@ -113,6 +92,12 @@ async function createAlertForUser(user, payload) {
   }
 
   const alert = await Alert.create(alertData);
+  const createdAlert = alert.toObject();
+
+  await eventBus.publish('alert.created', {
+    alert: createdAlert,
+    createdAt: new Date().toISOString(),
+  });
 
   return {
     status: 201,
@@ -153,6 +138,11 @@ async function deactivateAlert(alertId) {
 
   alert.isActive = false;
   await alert.save();
+
+  await eventBus.publish('alert.deactivated', {
+    alertId: String(alert._id),
+    deactivatedAt: new Date().toISOString(),
+  });
 
   return {
     status: 200,

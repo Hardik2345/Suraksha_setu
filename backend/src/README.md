@@ -9,6 +9,7 @@ Current status:
 - `alerts` is extracted under `src/modules/alerts`
 - `sos` is extracted under `src/modules/sos`
 - `resources` is extracted under `src/modules/resources`
+- `dashboard` is extracted under `src/modules/dashboard`
 - legacy features are still mounted from `backend/routes/*` through the central registrar
 
 Migration rule for the next modules:
