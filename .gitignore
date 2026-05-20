@@ -1,6 +1,31 @@
-### Node modules (ignore at repo root and any subfolders)
+# Dependencies
 node_modules/
+.venv/
+venv/
+env/
+ENV/
+model/.venv/
 
-### Environment files
+# Python cache/build output
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Runtime uploads/generated media
+backend/public/snap-sos/
+
+# Environment files
 .env
 .env.*
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

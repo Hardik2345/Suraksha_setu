@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import type React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -31,7 +31,7 @@ import {
   LocationOn as LocationBasedIcon,
   PersonAdd as AdminOnlyIcon,
 } from '@mui/icons-material';
-import { useCreateAlertMutation } from '../../app/api';
+import { useCreateAlertMutation, useLazyReverseGeocodeQuery } from '../../app/api';
 import type { AlertType, AlertSeverity, AlertTargetAudience, ApiError } from '../../types';
 
 const alertTypes: { value: AlertType; label: string; icon: React.ReactNode }[] = [
@@ -55,9 +55,14 @@ const targetOptions: { value: AlertTargetAudience; label: string; description: s
   { value: 'admin-only', label: 'Admin Only', description: 'Only for administrators', icon: <AdminOnlyIcon /> },
 ];
 
+const hasValidCoordinates = (coordinates: [number, number]) =>
+  coordinates.every((value) => Number.isFinite(value)) &&
+  !(coordinates[0] === 0 && coordinates[1] === 0);
+
 export default function BroadcastAlert() {
   const navigate = useNavigate();
   const [createAlert, { isLoading }] = useCreateAlertMutation();
+  const [reverseGeocode, { isFetching: addressLoading }] = useLazyReverseGeocodeQuery();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -68,6 +73,7 @@ export default function BroadcastAlert() {
     location: {
       type: 'Point' as const,
       coordinates: [0, 0] as [number, number],
+      address: '',
       city: '',
       state: '',
     },
@@ -78,9 +84,44 @@ export default function BroadcastAlert() {
   const [success, setSuccess] = useState('');
   const [useLocation, setUseLocation] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [addressError, setAddressError] = useState('');
+
+  useEffect(() => {
+    if (
+      formData.targetAudience !== 'location-based' ||
+      !formData.location.coordinates.every((value) => Number.isFinite(value)) ||
+      (formData.location.coordinates[0] === 0 && formData.location.coordinates[1] === 0)
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      const [lng, lat] = formData.location.coordinates;
+
+      try {
+        setAddressError('');
+        const response = await reverseGeocode({ lat, lng }, true).unwrap();
+
+        setFormData((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            address: response.data.address || '',
+            city: response.data.city || '',
+            state: response.data.state || '',
+          },
+        }));
+      } catch {
+        setAddressError('We could not resolve the selected coordinates into a readable place name.');
+      }
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [formData.location.coordinates, formData.targetAudience, reverseGeocode]);
 
   const getLocation = () => {
     setLocationLoading(true);
+    setAddressError('');
     if (!navigator.geolocation) {
       setLocationLoading(false);
       return;
@@ -114,7 +155,7 @@ export default function BroadcastAlert() {
       return;
     }
 
-    if (formData.targetAudience === 'location-based' && (!formData.location.coordinates[0] || !formData.location.coordinates[1])) {
+    if (formData.targetAudience === 'location-based' && !hasValidCoordinates(formData.location.coordinates)) {
       setError('Location coordinates are required for location-based alerts');
       return;
     }
@@ -135,6 +176,7 @@ export default function BroadcastAlert() {
               type: 'Point',
               coordinates: formData.location.coordinates,
               radius: formData.radius,
+              address: formData.location.address || undefined,
               city: formData.location.city || undefined,
               state: formData.location.state || undefined,
             }
@@ -142,6 +184,7 @@ export default function BroadcastAlert() {
       }).unwrap();
 
       setSuccess('Alert broadcast successfully!');
+      setAddressError('');
       
       // Reset form
       setFormData({
@@ -153,6 +196,7 @@ export default function BroadcastAlert() {
         location: {
           type: 'Point',
           coordinates: [0, 0] as [number, number],
+          address: '',
           city: '',
           state: '',
         },
@@ -192,6 +236,11 @@ export default function BroadcastAlert() {
           {success && (
             <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
               {success}
+            </Alert>
+          )}
+          {addressError && formData.targetAudience === 'location-based' && (
+            <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+              {addressError}
             </Alert>
           )}
 
@@ -412,12 +461,21 @@ export default function BroadcastAlert() {
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <TextField
                       fullWidth
+                      label="Resolved address"
+                      value={formData.location.address}
+                      onChange={(e) => setFormData({ ...formData, location: { ...formData.location, address: e.target.value } })}
+                      helperText={addressLoading ? 'Resolving location details from coordinates...' : 'Auto-filled from the selected coordinates.'}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 3 }}>
+                    <TextField
+                      fullWidth
                       label="City"
                       value={formData.location.city}
                       onChange={(e) => setFormData({ ...formData, location: { ...formData.location, city: e.target.value } })}
                     />
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
+                  <Grid size={{ xs: 12, sm: 3 }}>
                     <TextField
                       fullWidth
                       label="State"

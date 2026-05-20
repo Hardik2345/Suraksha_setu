@@ -1,6 +1,7 @@
 const Alert = require('../../../../models/Alert');
 const eventBus = require('../../../shared/events/eventBus');
 const { hasCoordinates, distanceInMeters } = require('../domain/alertAudience');
+const { reverseGeocodeCoordinates } = require('../../../shared/integrations/googleGeocoding');
 
 async function listAlertsForUser(user) {
   let query = { isActive: true, expiresAt: { $gt: new Date() } };
@@ -78,13 +79,30 @@ async function createAlertForUser(user, payload) {
       return { status: 400, body: { success: false, message: 'Invalid location coordinates: must be numeric' } };
     }
 
-    alertData.location = {
+    let enrichedLocation = {
       type: 'Point',
       coordinates: [lngVal, latVal],
       radius: location.radius || radius || 10,
+      address: location.address,
       city: location.city || city,
       state: location.state || state,
     };
+
+    if (!enrichedLocation.address || !enrichedLocation.city || !enrichedLocation.state) {
+      try {
+        const geocoded = await reverseGeocodeCoordinates({ lat: latVal, lng: lngVal });
+        if (geocoded) {
+          enrichedLocation = {
+            ...enrichedLocation,
+            ...geocoded,
+          };
+        }
+      } catch (error) {
+        console.warn('Reverse geocoding failed while creating alert:', error.message);
+      }
+    }
+
+    alertData.location = enrichedLocation;
   }
 
   if (expiryHours) {

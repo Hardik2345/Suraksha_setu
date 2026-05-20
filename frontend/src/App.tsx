@@ -26,6 +26,7 @@ import Register from './pages/auth/Register';
 // Citizen Pages
 import CitizenDashboard from './pages/citizen/Dashboard';
 import CreateSOS from './pages/citizen/CreateSOS';
+import SnapSOS from './pages/citizen/SnapSOS';
 import MySOSList from './pages/citizen/MySOSList';
 import SOSDetail from './pages/citizen/SOSDetail';
 import ResourceDirectory from './pages/citizen/ResourceDirectory';
@@ -118,6 +119,7 @@ function AppRoutes() {
             >
               <Route path="/dashboard" element={<CitizenDashboard />} />
               <Route path="/create-sos" element={<CreateSOS />} />
+              <Route path="/snap-sos" element={<SnapSOS />} />
               <Route path="/my-sos" element={<MySOSList />} />
               <Route path="/sos/:id" element={<SOSDetail />} />
               <Route path="/resources" element={<ResourceDirectory />} />

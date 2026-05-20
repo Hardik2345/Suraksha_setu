@@ -74,12 +74,63 @@ export interface UpdateLocationRequest {
   location: GeoLocation;
 }
 
+export interface ReverseGeocodeParams {
+  lat: number;
+  lng: number;
+}
+
+export interface ReverseGeocodeResult {
+  address: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+}
+
+export interface ReverseGeocodeResponse {
+  success: boolean;
+  data: ReverseGeocodeResult;
+}
+
 // ---------------------- SOS Types ----------------------
-export type SOSType = 'flood' | 'fire' | 'earthquake' | 'medical' | 'accident' | 'other';
+export type SOSType = 'earthquake' | 'fire' | 'flood' | 'landslide' | 'normal' | 'smoke';
 export type SOSSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type SOSStatus = 'pending' | 'acknowledged' | 'in-progress' | 'resolved';
 
 export interface SOSLocation extends GeoLocation {}
+
+export interface WeatherContext {
+  provider?: string;
+  summary?: string;
+  temperatureC?: number;
+  windSpeedKph?: number;
+  precipitationMm?: number;
+  weatherCode?: number;
+  fetchedAt?: string;
+}
+
+export interface ConfidenceBreakdown {
+  model: number;
+  weather: number;
+  crowd: number;
+  quality: number;
+  trust?: number;
+}
+
+export interface TrustBreakdown {
+  userTrust: number;
+  exifLocationMatch: number;
+  exifTimestampFreshness: number;
+  duplicateImageScore: number;
+}
+
+export interface ClusterPreview {
+  _id?: string;
+  clusterId?: string;
+  canonicalClass?: SOSType;
+  reportCount?: number;
+  uniqueReporterCount?: number;
+  aggregateConfidence?: number;
+}
 
 export interface SOS {
   _id: string;
@@ -94,6 +145,28 @@ export interface SOS {
   updatedAt: string;
   resolvedAt?: string;
   adminNotes?: string;
+  source?: 'manual' | 'snap';
+  imageUrl?: string;
+  modelPrediction?: SOSType;
+  modelProbabilities?: Record<string, number>;
+  modelTopScore?: number;
+  modelVersion?: string;
+  userConfirmedType?: SOSType;
+  weatherContext?: WeatherContext;
+  confidenceScore?: number;
+  confidenceBreakdown?: ConfidenceBreakdown;
+  trustScore?: number;
+  trustBreakdown?: TrustBreakdown;
+  confidenceCap?: number;
+  metadataStatus?: string;
+  clientLocation?: SOSLocation;
+  exifLocation?: GeoPoint;
+  exifCapturedAt?: string;
+  imageHash?: string;
+  locationMismatchMeters?: number | null;
+  suspicionFlags?: string[];
+  clusterId?: string | ClusterPreview;
+  reviewStatus?: 'manual-created' | 'snap-analyzed' | 'snap-confirmed' | 'normal-review';
 }
 
 export interface CreateSOSRequest {
@@ -126,6 +199,45 @@ export interface UpdateSOSStatusRequest {
 
 export interface SOSListParams {
   status?: SOSStatus;
+}
+
+export interface SnapSOSAnalysisResult {
+  analysisId: string;
+  imageUrl: string;
+  predictedClass: SOSType;
+  classProbabilities: Record<string, number>;
+  topClassProbability: number;
+  modelVersion: string;
+  weatherContext?: WeatherContext;
+  confidenceScore: number;
+  confidenceBreakdown: ConfidenceBreakdown;
+  trustScore: number;
+  trustBreakdown: TrustBreakdown;
+  confidenceCap: number;
+  metadataStatus: string;
+  suspicionFlags: string[];
+  suggestedType: SOSType;
+  reviewStatus: 'snap-analyzed' | 'normal-review';
+  clusterPreview?: ClusterPreview | null;
+  location: SOSLocation;
+}
+
+export interface SnapSOSAnalyzeResponse {
+  success: boolean;
+  data: SnapSOSAnalysisResult;
+}
+
+export interface ConfirmSnapSOSRequest {
+  analysisId: string;
+  type: SOSType;
+  description: string;
+  contactNumber?: string;
+}
+
+export interface ConfirmSnapSOSResponse {
+  success: boolean;
+  data: SOS;
+  cluster?: ClusterPreview;
 }
 
 // ---------------------- Resource Types ----------------------
@@ -299,4 +411,3 @@ export interface SuccessResponse {
   success: boolean;
   message: string;
 }
-

@@ -1,4 +1,58 @@
 const Resource = require('../../../../models/Resource');
+const { reverseGeocodeCoordinates } = require('../../../shared/integrations/googleGeocoding');
+
+function normalizeCoordinates(coordinates) {
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+    return null;
+  }
+
+  const [lng, lat] = coordinates.map(Number);
+  if (Number.isNaN(lng) || Number.isNaN(lat)) {
+    return null;
+  }
+
+  return [lng, lat];
+}
+
+async function enrichLocation(location) {
+  const coordinates = normalizeCoordinates(location && location.coordinates);
+  if (!coordinates) {
+    return null;
+  }
+
+  let enrichedLocation = {
+    type: 'Point',
+    coordinates,
+    address: location.address,
+    city: location.city,
+    state: location.state,
+    pincode: location.pincode,
+  };
+
+  const hasReadableLocation =
+    enrichedLocation.address || enrichedLocation.city || enrichedLocation.state || enrichedLocation.pincode;
+
+  if (!hasReadableLocation) {
+    try {
+      const [lng, lat] = coordinates;
+      const geocoded = await reverseGeocodeCoordinates({ lat, lng });
+      if (geocoded) {
+        enrichedLocation = {
+          ...enrichedLocation,
+          ...geocoded,
+        };
+      }
+    } catch (error) {
+      console.warn('Reverse geocoding failed while saving resource:', error.message);
+    }
+  }
+
+  if (!enrichedLocation.address) {
+    enrichedLocation.address = `Approximate coordinates: ${coordinates[1].toFixed(6)}, ${coordinates[0].toFixed(6)}`;
+  }
+
+  return enrichedLocation;
+}
 
 async function listResources(filters = {}) {
   const { type, search, coordinates, radius = 10 } = filters;
@@ -56,18 +110,23 @@ async function createResource(user, payload) {
     !type ||
     !location ||
     location.type !== 'Point' ||
-    !Array.isArray(location.coordinates) ||
-    location.coordinates.length !== 2 ||
-    !location.address ||
     !phone
   ) {
     return { status: 400, body: { success: false, message: 'Missing required fields' } };
   }
 
+  const enrichedLocation = await enrichLocation(location);
+  if (!enrichedLocation) {
+    return {
+      status: 400,
+      body: { success: false, message: 'location must be a valid GeoJSON Point' },
+    };
+  }
+
   const resource = await Resource.create({
     name,
     type,
-    location,
+    location: enrichedLocation,
     contact: { phone, email, website },
     services: services || [],
     capacity,
@@ -112,19 +171,22 @@ async function updateResource(resourceId, payload) {
 
   if (payload.location !== undefined) {
     const { location } = payload;
-    if (
-      !location ||
-      location.type !== 'Point' ||
-      !Array.isArray(location.coordinates) ||
-      location.coordinates.length !== 2 ||
-      !location.address
-    ) {
+    if (!location || location.type !== 'Point') {
       return {
         status: 400,
-        body: { success: false, message: 'location must be a valid GeoJSON Point with address' },
+        body: { success: false, message: 'location must be a valid GeoJSON Point' },
       };
     }
-    resource.location = location;
+
+    const enrichedLocation = await enrichLocation(location);
+    if (!enrichedLocation) {
+      return {
+        status: 400,
+        body: { success: false, message: 'location must be a valid GeoJSON Point' },
+      };
+    }
+
+    resource.location = enrichedLocation;
   }
 
   await resource.save();

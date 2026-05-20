@@ -136,9 +136,11 @@ export default function MySOSList() {
               <TableHead>
                 <TableRow sx={{ backgroundColor: 'grey.50' }}>
                   <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Source</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Severity</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Confidence</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
                   <TableCell sx={{ fontWeight: 600 }} align="center">
                     Actions
@@ -149,7 +151,7 @@ export default function MySOSList() {
                 {isLoading ? (
                   [...Array(5)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(6)].map((_, j) => (
+                      {[...Array(8)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton variant="text" />
                         </TableCell>
@@ -158,7 +160,7 @@ export default function MySOSList() {
                   ))
                 ) : sosList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                       <Typography color="text.secondary">
                         No SOS reports found. Stay safe!
                       </Typography>
@@ -188,6 +190,13 @@ export default function MySOSList() {
                       </TableCell>
                       <TableCell>
                         <Chip
+                          label={sos.source || 'manual'}
+                          size="small"
+                          variant={sos.source === 'snap' ? 'filled' : 'outlined'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
                           label={sos.severity}
                           size="small"
                           color={severityColors[sos.severity]}
@@ -205,6 +214,11 @@ export default function MySOSList() {
                       <TableCell>
                         <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
                           {sos.location?.address || `${sos.location?.coordinates?.[1]?.toFixed(4)}, ${sos.location?.coordinates?.[0]?.toFixed(4)}`}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {typeof sos.confidenceScore === 'number' ? `${Math.round(sos.confidenceScore * 100)}%` : '—'}
                         </Typography>
                       </TableCell>
                       <TableCell>

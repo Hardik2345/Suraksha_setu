@@ -1,11 +1,14 @@
 const mongoose = require('mongoose');
 
+const DISASTER_TYPES = ['earthquake', 'fire', 'flood', 'landslide', 'normal', 'smoke'];
+
 const sosSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['flood','fire','earthquake','medical','accident','other'], required: true },
+  type: { type: String, enum: DISASTER_TYPES, required: true },
   severity: { type: String, enum: ['low','medium','high','critical'], default: 'high' },
   status: { type: String, enum: ['pending','acknowledged','in-progress','resolved'], default: 'pending' },
   description: { type: String, required: true, maxlength: 500 },
+  source: { type: String, enum: ['manual', 'snap'], default: 'manual' },
   location: {
     type: {
       type: String,
@@ -26,10 +29,75 @@ const sosSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   resolvedAt: Date,
-  adminNotes: String
+  adminNotes: String,
+  imageUrl: String,
+  clientLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+    },
+    coordinates: [Number],
+    address: String,
+    city: String,
+    state: String,
+    pincode: String,
+  },
+  modelPrediction: { type: String, enum: DISASTER_TYPES },
+  modelProbabilities: {
+    type: Map,
+    of: Number,
+    default: undefined,
+  },
+  modelTopScore: Number,
+  modelVersion: String,
+  userConfirmedType: { type: String, enum: DISASTER_TYPES },
+  weatherContext: {
+    provider: String,
+    summary: String,
+    temperatureC: Number,
+    windSpeedKph: Number,
+    precipitationMm: Number,
+    weatherCode: Number,
+    fetchedAt: Date,
+  },
+  confidenceScore: Number,
+  confidenceBreakdown: {
+    model: Number,
+    weather: Number,
+    crowd: Number,
+    quality: Number,
+    trust: Number,
+  },
+  trustScore: Number,
+  trustBreakdown: {
+    userTrust: Number,
+    exifLocationMatch: Number,
+    exifTimestampFreshness: Number,
+    duplicateImageScore: Number,
+  },
+  confidenceCap: Number,
+  metadataStatus: String,
+  exifLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+    },
+    coordinates: [Number],
+  },
+  exifCapturedAt: Date,
+  imageHash: String,
+  locationMismatchMeters: Number,
+  suspicionFlags: [String],
+  clusterId: { type: mongoose.Schema.Types.ObjectId, ref: 'IncidentCluster' },
+  reviewStatus: {
+    type: String,
+    enum: ['manual-created', 'snap-analyzed', 'snap-confirmed', 'normal-review'],
+    default: 'manual-created',
+  },
 });
 
 sosSchema.index({ location: '2dsphere' });
+sosSchema.index({ imageHash: 1, createdAt: -1 });
 
 sosSchema.pre('validate', function(next) {
   const coords = this.location?.coordinates;
@@ -47,3 +115,4 @@ sosSchema.pre('save', function(next) {
 
 const SOS = mongoose.model('SOS', sosSchema);
 module.exports = SOS;
+module.exports.DISASTER_TYPES = DISASTER_TYPES;

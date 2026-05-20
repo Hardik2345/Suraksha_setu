@@ -38,12 +38,12 @@ const severityColors: Record<string, 'success' | 'warning' | 'error'> = {
 };
 
 const typeEmojis: Record<string, string> = {
-  flood: '🌊',
-  fire: '🔥',
   earthquake: '🌍',
-  medical: '🏥',
-  accident: '🚗',
-  other: '⚠️',
+  fire: '🔥',
+  flood: '🌊',
+  landslide: '⛰️',
+  normal: '🟡',
+  smoke: '🌫️',
 };
 
 export default function SOSDetail() {
@@ -117,6 +117,12 @@ export default function SOSDetail() {
                 <Typography variant="body1" sx={{ mt: 1, opacity: 0.8 }}>
                   Report ID: {sos._id}
                 </Typography>
+                <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                  {sos.source && <Chip label={`${sos.source.toUpperCase()} SOS`} size="small" />}
+                  {typeof sos.confidenceScore === 'number' && (
+                    <Chip label={`Confidence ${Math.round(sos.confidenceScore * 100)}%`} size="small" />
+                  )}
+                </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Chip
@@ -144,6 +150,35 @@ export default function SOSDetail() {
                   <Typography variant="body1">{sos.description}</Typography>
                 </Paper>
               </Grid>
+
+              {sos.imageUrl && (
+                <Grid size={12}>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Snap Evidence
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                    <Box
+                      component="img"
+                      src={sos.imageUrl}
+                      alt="Snap SOS evidence"
+                      sx={{ width: '100%', maxHeight: 420, objectFit: 'cover', borderRadius: 2, mb: 2 }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      Model prediction: {sos.modelPrediction || 'Not available'}
+                    </Typography>
+                    {typeof sos.confidenceScore === 'number' && (
+                      <Typography variant="body2" color="text.secondary">
+                        Confidence: {Math.round(sos.confidenceScore * 100)}%
+                      </Typography>
+                    )}
+                    {typeof sos.trustScore === 'number' && (
+                      <Typography variant="body2" color="text.secondary">
+                        Trust: {Math.round(sos.trustScore * 100)}%
+                      </Typography>
+                    )}
+                  </Paper>
+                </Grid>
+              )}
 
               {/* Timeline */}
               <Grid size={{ xs: 12, md: 6 }}>
@@ -256,6 +291,31 @@ export default function SOSDetail() {
                   </Box>
                 )}
               </Grid>
+
+              {(sos.weatherContext || sos.confidenceBreakdown) && (
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Snap Analysis
+                  </Typography>
+                  {sos.weatherContext && (
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      Weather: {sos.weatherContext.summary || 'Unavailable'}
+                    </Typography>
+                  )}
+                  {sos.confidenceBreakdown && (
+                    <Typography variant="body2" color="text.secondary">
+                      Model {Math.round(sos.confidenceBreakdown.model * 100)}% • Weather {Math.round(sos.confidenceBreakdown.weather * 100)}% • Crowd {Math.round(sos.confidenceBreakdown.crowd * 100)}% • Quality {Math.round(sos.confidenceBreakdown.quality * 100)}% • Trust {Math.round((sos.confidenceBreakdown.trust || sos.trustScore || 0) * 100)}%
+                    </Typography>
+                  )}
+                  {sos.suspicionFlags && sos.suspicionFlags.length > 0 && (
+                    <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {sos.suspicionFlags.map((flag) => (
+                        <Chip key={flag} label={flag} size="small" color="warning" />
+                      ))}
+                    </Box>
+                  )}
+                </Grid>
+              )}
 
               {/* Admin Notes */}
               {sos.adminNotes && (

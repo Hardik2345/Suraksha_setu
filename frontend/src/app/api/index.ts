@@ -1,5 +1,6 @@
 // Export all API slices and hooks from a single entry point
 export { baseApi } from './baseApi';
+export { geocodingApi, useLazyReverseGeocodeQuery } from './geocodingApi';
 
 export {
   authApi,
@@ -51,4 +52,8 @@ export {
   useLazyGetAdminDashboardQuery,
 } from './dashboardApi';
 
-
+export {
+  snapSosApi,
+  useAnalyzeSnapSOSMutation,
+  useConfirmSnapSOSMutation,
+} from './snapSosApi';

@@ -6,6 +6,7 @@ import {
   CardContent,
   Typography,
   Chip,
+  Stack,
   Alert,
   Tabs,
   Tab,
@@ -157,10 +158,12 @@ export default function AllSOS() {
               <TableHead>
                 <TableRow sx={{ backgroundColor: 'grey.50' }}>
                   <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Source</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Severity</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Reporter</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Confidence</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
                   <TableCell sx={{ fontWeight: 600 }} align="center">
                     Actions
@@ -171,7 +174,7 @@ export default function AllSOS() {
                 {isLoading ? (
                   [...Array(5)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(7)].map((_, j) => (
+                      {[...Array(9)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton variant="text" />
                         </TableCell>
@@ -180,7 +183,7 @@ export default function AllSOS() {
                   ))
                 ) : sosList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                       <Typography color="text.secondary">
                         No SOS reports found with the selected filter.
                       </Typography>
@@ -193,6 +196,15 @@ export default function AllSOS() {
                         <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
                           {sos.type}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          <Chip label={sos.source || 'manual'} size="small" variant={sos.source === 'snap' ? 'filled' : 'outlined'} />
+                          {sos.reviewStatus === 'normal-review' && <Chip label="Needs review" size="small" color="warning" />}
+                          {sos.suspicionFlags?.includes('duplicate-image') && <Chip label="Duplicate" size="small" color="error" />}
+                          {sos.suspicionFlags?.includes('gps-mismatch') && <Chip label="GPS mismatch" size="small" color="error" />}
+                          {sos.suspicionFlags?.includes('stale-image') && <Chip label="Stale image" size="small" color="warning" />}
+                        </Stack>
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -226,6 +238,18 @@ export default function AllSOS() {
                         <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
                           {sos.location?.address || `${sos.location?.coordinates?.[1]?.toFixed(4)}, ${sos.location?.coordinates?.[0]?.toFixed(4)}`}
                         </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack spacing={0.5}>
+                          <Typography variant="body2" color="text.secondary">
+                            {typeof sos.confidenceScore === 'number' ? `${Math.round(sos.confidenceScore * 100)}%` : '—'}
+                          </Typography>
+                          {typeof sos.trustScore === 'number' && (
+                            <Typography variant="caption" color="text.secondary">
+                              Trust {Math.round(sos.trustScore * 100)}%
+                            </Typography>
+                          )}
+                        </Stack>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">

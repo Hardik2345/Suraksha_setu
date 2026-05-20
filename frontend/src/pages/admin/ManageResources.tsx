@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Card,
@@ -8,6 +8,7 @@ import {
   Chip,
   Grid,
   Alert,
+  CircularProgress,
   Skeleton,
   IconButton,
   Tooltip,
@@ -26,6 +27,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
+  MyLocation as LocationIcon,
   LocalHospital as HospitalIcon,
   Home as ShelterIcon,
   LocalFireDepartment as FireIcon,
@@ -37,6 +39,7 @@ import {
   useCreateResourceMutation,
   useUpdateResourceMutation,
   useDeleteResourceMutation,
+  useLazyReverseGeocodeQuery,
 } from '../../app/api';
 import type { ResourceType, Resource, CreateResourceRequest, ApiError } from '../../types';
 
@@ -79,6 +82,10 @@ const initialFormData: CreateResourceRequest = {
   operatingHours: '24/7',
 };
 
+const hasValidCoordinates = (coordinates: [number, number]) =>
+  coordinates.every((value) => Number.isFinite(value)) &&
+  !(coordinates[0] === 0 && coordinates[1] === 0);
+
 export default function ManageResources() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
@@ -90,8 +97,41 @@ export default function ManageResources() {
   const [createResource, { isLoading: isCreating }] = useCreateResourceMutation();
   const [updateResource, { isLoading: isUpdating }] = useUpdateResourceMutation();
   const [deleteResource, { isLoading: isDeleting }] = useDeleteResourceMutation();
+  const [reverseGeocode, { isFetching: addressLoading }] = useLazyReverseGeocodeQuery();
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [addressError, setAddressError] = useState('');
 
   const resources = data?.data || [];
+
+  useEffect(() => {
+    if (!dialogOpen || !hasValidCoordinates(formData.location.coordinates)) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      const [lng, lat] = formData.location.coordinates;
+
+      try {
+        setAddressError('');
+        const response = await reverseGeocode({ lat, lng }, true).unwrap();
+
+        setFormData((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            address: response.data.address || '',
+            city: response.data.city || '',
+            state: response.data.state || '',
+            pincode: response.data.pincode || '',
+          },
+        }));
+      } catch {
+        setAddressError('We could not resolve a readable address. You can still save the resource with coordinates.');
+      }
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [dialogOpen, formData.location.coordinates, reverseGeocode]);
 
   const handleOpenCreate = () => {
     setEditingResource(null);
@@ -129,17 +169,48 @@ export default function ManageResources() {
     setEditingResource(null);
     setFormData(initialFormData);
     setFormError('');
+    setAddressError('');
+    setLocationLoading(false);
+  };
+
+  const handleUseCurrentLocation = () => {
+    setLocationLoading(true);
+    setAddressError('');
+
+    if (!navigator.geolocation) {
+      setFormError('Geolocation is not supported by your browser');
+      setLocationLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            coordinates: [position.coords.longitude, position.coords.latitude],
+          },
+        }));
+        setLocationLoading(false);
+      },
+      (geoError) => {
+        setFormError(`Unable to get location: ${geoError.message}`);
+        setLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   const handleSubmit = async () => {
     setFormError('');
 
-    if (!formData.name || !formData.type || !formData.location.address || !formData.phone) {
+    if (!formData.name || !formData.type || !formData.phone) {
       setFormError('Please fill in all required fields');
       return;
     }
 
-    if (!formData.location.coordinates[0] || !formData.location.coordinates[1]) {
+    if (!hasValidCoordinates(formData.location.coordinates)) {
       setFormError('Please provide latitude and longitude');
       return;
     }
@@ -312,6 +383,11 @@ export default function ManageResources() {
               {formError}
             </Alert>
           )}
+          {addressError && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {addressError}
+            </Alert>
+          )}
 
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -342,11 +418,24 @@ export default function ManageResources() {
               </FormControl>
             </Grid>
             <Grid size={12}>
+              <Button
+                variant="outlined"
+                startIcon={locationLoading ? <CircularProgress size={18} /> : <LocationIcon />}
+                onClick={handleUseCurrentLocation}
+                disabled={locationLoading}
+                sx={{ textTransform: 'none' }}
+              >
+                {locationLoading ? 'Getting current location...' : 'Use Current Location'}
+              </Button>
+            </Grid>
+            <Grid size={12}>
               <TextField
                 fullWidth
-                label="Address *"
+                label="Address"
                 value={formData.location.address}
                 onChange={(e) => setFormData({ ...formData, location: { ...formData.location, address: e.target.value } })}
+                helperText={addressLoading ? 'Resolving address from coordinates...' : 'Auto-filled from latitude and longitude.'}
+                FormHelperTextProps={{ sx: { minHeight: 20 } }}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
@@ -471,5 +560,3 @@ export default function ManageResources() {
     </Box>
   );
 }
-
-

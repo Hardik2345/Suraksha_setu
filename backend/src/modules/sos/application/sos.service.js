@@ -1,4 +1,5 @@
 const SOS = require('../../../../models/SOS');
+const { reverseGeocodeCoordinates } = require('../../../shared/integrations/googleGeocoding');
 
 async function listSOSForUser(user, filters = {}) {
   const query = {};
@@ -31,13 +32,43 @@ async function createSOSForUser(user, payload) {
     };
   }
 
+  let enrichedLocation = {
+    type: 'Point',
+    coordinates: location.coordinates,
+    address: location.address,
+    city: location.city,
+    state: location.state,
+    pincode: location.pincode,
+  };
+
+  const hasReadableLocation =
+    enrichedLocation.address || enrichedLocation.city || enrichedLocation.state || enrichedLocation.pincode;
+
+  if (!hasReadableLocation) {
+    try {
+      const [lng, lat] = location.coordinates.map(Number);
+      const geocodedLocation = await reverseGeocodeCoordinates({ lat, lng });
+      if (geocodedLocation) {
+        enrichedLocation = {
+          ...enrichedLocation,
+          ...geocodedLocation,
+        };
+      }
+    } catch (error) {
+      console.warn('Reverse geocoding failed while creating SOS:', error.message);
+    }
+  }
+
   const sos = await SOS.create({
     userId: user._id,
     type,
+    userConfirmedType: type,
     severity: severity || 'high',
     description,
-    location,
+    location: enrichedLocation,
     contactNumber: contactNumber || (user && user.phone),
+    source: 'manual',
+    reviewStatus: 'manual-created',
   });
 
   return {

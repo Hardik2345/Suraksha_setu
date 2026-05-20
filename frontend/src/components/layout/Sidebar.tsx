@@ -15,6 +15,7 @@ import {
   Dashboard as DashboardIcon,
   Warning as SOSIcon,
   Add as AddIcon,
+  CameraAlt as CameraIcon,
   LocalHospital as ResourceIcon,
   Notifications as AlertIcon,
   Campaign as BroadcastIcon,
@@ -34,6 +35,7 @@ interface MenuItem {
 const citizenMenuItems: MenuItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
   { label: 'Report Emergency', path: '/create-sos', icon: <AddIcon /> },
+  { label: 'Snap SOS', path: '/snap-sos', icon: <CameraIcon /> },
   { label: 'My Reports', path: '/my-sos', icon: <SOSIcon /> },
   { label: 'Resources', path: '/resources', icon: <ResourceIcon /> },
   { label: 'Alerts', path: '/alerts', icon: <AlertIcon /> },
@@ -201,4 +203,3 @@ export default function Sidebar({ open, onClose, variant = 'temporary' }: Sideba
     </Drawer>
   );
 }
-

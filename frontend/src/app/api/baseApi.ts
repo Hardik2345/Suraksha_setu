@@ -17,12 +17,7 @@ export const baseApi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: getBaseUrl(),
     credentials: 'include', // Important: Include cookies for session-based auth
-    prepareHeaders: (headers) => {
-      headers.set('Content-Type', 'application/json');
-      return headers;
-    },
   }),
   tagTypes: ['SOS', 'Resource', 'Alert', 'User', 'Dashboard'],
   endpoints: () => ({}),
 });
-

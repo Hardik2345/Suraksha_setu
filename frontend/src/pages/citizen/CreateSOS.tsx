@@ -15,24 +15,29 @@ import {
   CircularProgress,
   Grid,
   Chip,
+  InputAdornment,
 } from '@mui/material';
 import {
   MyLocation as LocationIcon,
   Send as SendIcon,
+  HomeOutlined as HomeIcon,
 } from '@mui/icons-material';
-import { useCreateSOSMutation } from '../../app/api';
+import { useCreateSOSMutation, useLazyReverseGeocodeQuery } from '../../app/api';
 import type { SOSType, SOSSeverity, ApiError } from '../../types';
 
 const formatCoordinateInput = (coordinates?: [number, number], index?: 0 | 1) =>
   coordinates && index !== undefined ? coordinates[index] : '';
 
+const hasValidCoordinates = (coordinates: [number, number]) =>
+  coordinates.every((value) => Number.isFinite(value)) &&
+  !(coordinates[0] === 0 && coordinates[1] === 0);
+
 const sosTypes: { value: SOSType; label: string; icon: string }[] = [
-  { value: 'flood', label: 'Flood', icon: '🌊' },
-  { value: 'fire', label: 'Fire', icon: '🔥' },
   { value: 'earthquake', label: 'Earthquake', icon: '🌍' },
-  { value: 'medical', label: 'Medical Emergency', icon: '🏥' },
-  { value: 'accident', label: 'Accident', icon: '🚗' },
-  { value: 'other', label: 'Other', icon: '⚠️' },
+  { value: 'fire', label: 'Fire', icon: '🔥' },
+  { value: 'flood', label: 'Flood', icon: '🌊' },
+  { value: 'landslide', label: 'Landslide', icon: '⛰️' },
+  { value: 'smoke', label: 'Smoke', icon: '🌫️' },
 ];
 
 const severityLevels: { value: SOSSeverity; label: string; color: 'success' | 'warning' | 'error' | 'error' }[] = [
@@ -45,27 +50,70 @@ const severityLevels: { value: SOSSeverity; label: string; color: 'success' | 'w
 export default function CreateSOS() {
   const navigate = useNavigate();
   const [createSOS, { isLoading }] = useCreateSOSMutation();
+  const [reverseGeocode, { isFetching: addressLoading }] = useLazyReverseGeocodeQuery();
 
   const [formData, setFormData] = useState({
     type: '' as SOSType | '',
     severity: 'high' as SOSSeverity,
     description: '',
-    location: {
-      type: 'Point' as const,
-      coordinates: [0, 0] as [number, number],
-      address: '',
-    },
-    address: '',
+      location: {
+        type: 'Point' as const,
+        coordinates: [0, 0] as [number, number],
+        address: '',
+        city: '',
+        state: '',
+        pincode: '',
+      },
     contactNumber: '',
   });
   const [error, setError] = useState('');
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [addressError, setAddressError] = useState('');
 
   // Get user's location on mount
   useEffect(() => {
     getLocation();
   }, []);
+
+  useEffect(() => {
+    if (!hasValidCoordinates(formData.location.coordinates)) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setAddressError('');
+        const [lng, lat] = formData.location.coordinates;
+        const response = await reverseGeocode({ lat, lng }, true).unwrap();
+
+        setFormData((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            address: response.data.address || '',
+            city: response.data.city || '',
+            state: response.data.state || '',
+            pincode: response.data.pincode || '',
+          },
+        }));
+      } catch {
+        setAddressError('We could not resolve a readable address. The SOS will still be sent with coordinates.');
+        setFormData((prev) => ({
+          ...prev,
+          location: {
+            ...prev.location,
+            address: '',
+            city: '',
+            state: '',
+            pincode: '',
+          },
+        }));
+      }
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [formData.location.coordinates, reverseGeocode]);
 
   const getLocation = () => {
     setLocationLoading(true);
@@ -110,7 +158,7 @@ export default function CreateSOS() {
       return;
     }
 
-    if (!formData.location.coordinates[0] || !formData.location.coordinates[1]) {
+    if (!hasValidCoordinates(formData.location.coordinates)) {
       setError('Location is required. Please enable location services.');
       return;
     }
@@ -120,11 +168,7 @@ export default function CreateSOS() {
         type: formData.type as SOSType,
         description: formData.description,
         severity: formData.severity,
-        location: {
-          type: 'Point',
-          coordinates: formData.location.coordinates,
-          address: formData.address || undefined,
-        },
+        location: formData.location,
         contactNumber: formData.contactNumber || undefined,
       }).unwrap();
 
@@ -298,15 +342,34 @@ export default function CreateSOS() {
               </Grid>
             </Grid>
 
-            {/* Address */}
+            {/* Reverse-Geocoded Address */}
             <TextField
               fullWidth
-              label="Address (optional)"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              placeholder="Landmark or address details"
-              sx={{ mb: 3, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              label="Detected Address"
+              value={formData.location.address}
+              placeholder={addressLoading ? 'Resolving your address...' : 'Address will be detected automatically'}
+              InputProps={{
+                readOnly: true,
+                startAdornment: (
+                  <InputAdornment position="start">
+                    {addressLoading ? <CircularProgress size={18} /> : <HomeIcon sx={{ color: 'text.secondary' }} />}
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              helperText={
+                formData.location.city || formData.location.state || formData.location.pincode
+                  ? [formData.location.city, formData.location.state, formData.location.pincode]
+                      .filter(Boolean)
+                      .join(' • ')
+                  : 'We resolve your address automatically from your current coordinates.'
+              }
             />
+            {addressError && (
+              <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+                {addressError}
+              </Alert>
+            )}
 
             {/* Contact Number */}
             <TextField

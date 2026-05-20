@@ -38,8 +38,10 @@ const alertSchema = new mongoose.Schema({
       type: Number,
       default: 10
     },
+    address: String,
     city: String,
-    state: String
+    state: String,
+    pincode: String
   },
   isActive: {
     type: Boolean,
