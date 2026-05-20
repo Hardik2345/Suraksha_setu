@@ -114,6 +114,7 @@ export interface ConfidenceBreakdown {
   crowd: number;
   quality: number;
   trust?: number;
+  evidence?: number;
 }
 
 export interface TrustBreakdown {
@@ -199,6 +200,57 @@ export interface UpdateSOSStatusRequest {
 
 export interface SOSListParams {
   status?: SOSStatus;
+}
+
+export interface OutbreakMapParams {
+  type?: SOSType | 'all';
+  severity?: SOSSeverity;
+  source?: 'manual' | 'snap';
+  status?: SOSStatus | 'active';
+  from?: string;
+  to?: string;
+  bounds?: string;
+  limit?: number;
+}
+
+export interface OutbreakMapIncident {
+  id: string;
+  type: SOSType;
+  severity: SOSSeverity;
+  status: SOSStatus;
+  source: 'manual' | 'snap';
+  coordinates: [number, number];
+  address?: string;
+  city?: string;
+  state?: string;
+  description: string;
+  createdAt: string;
+  confidenceScore?: number;
+  reporter?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+}
+
+export interface OutbreakMapResponse {
+  success: boolean;
+  data: {
+    generatedAt: string;
+    filters: {
+      from: string;
+      to: string;
+      status: string;
+      type: string;
+    };
+    stats: {
+      total: number;
+      byType: Array<{ type: SOSType; count: number }>;
+      bySeverity: Array<{ severity: SOSSeverity; count: number }>;
+      latestReportAt?: string;
+    };
+    incidents: OutbreakMapIncident[];
+  };
 }
 
 export interface SnapSOSAnalysisResult {

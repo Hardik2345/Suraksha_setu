@@ -139,12 +139,12 @@ async function computeUserTrust(userId) {
 
 function computeExifLocationMatch(clientLocation, exifLocation) {
   if (!exifLocation?.coordinates || !clientLocation?.coordinates) {
-    return { score: 0.5, mismatchMeters: null, flags: [], metadataStatus: 'missing-exif-location' };
+    return { score: 0.2, mismatchMeters: null, flags: ['missing-exif-location'], metadataStatus: 'missing-exif-location' };
   }
 
   const mismatchMeters = distanceInMeters(clientLocation.coordinates, exifLocation.coordinates);
   if (mismatchMeters === null) {
-    return { score: 0.5, mismatchMeters: null, flags: ['exif-location-invalid'], metadataStatus: 'missing-exif-location' };
+    return { score: 0.15, mismatchMeters: null, flags: ['exif-location-invalid'], metadataStatus: 'missing-exif-location' };
   }
 
   if (mismatchMeters <= 100) {
@@ -165,7 +165,7 @@ function computeExifLocationMatch(clientLocation, exifLocation) {
 
 function computeExifTimestampFreshness(exifCapturedAt) {
   if (!exifCapturedAt) {
-    return { score: 0.5, flags: [], metadataStatus: 'missing-exif-time' };
+    return { score: 0.2, flags: ['missing-exif-time'], metadataStatus: 'missing-exif-time' };
   }
 
   const ageMs = Date.now() - exifCapturedAt.getTime();
@@ -229,10 +229,10 @@ function computeCrowdScore(cluster, userId, duplicateInfo) {
 
 function computeTrustScore({ userTrust, exifLocationMatch, exifTimestampFreshness, duplicateImageScore }) {
   const trust = clampScore(
-    0.35 * userTrust +
-    0.25 * exifLocationMatch +
-    0.20 * exifTimestampFreshness +
-    0.20 * duplicateImageScore
+    0.20 * userTrust +
+    0.35 * exifLocationMatch +
+    0.30 * exifTimestampFreshness +
+    0.15 * duplicateImageScore
   );
 
   return {
@@ -244,17 +244,35 @@ function computeTrustScore({ userTrust, exifLocationMatch, exifTimestampFreshnes
   };
 }
 
-function computeConfidenceCap({ predictedClass, crowdScore, duplicateInfo, locationMatchInfo, timestampInfo }) {
+function computeMetadataFlags(metadata) {
+  const flags = [];
+
+  if (metadata?.metadataStatus === 'missing-exif') {
+    flags.push('missing-exif');
+  } else if (metadata?.metadataStatus === 'malformed-exif') {
+    flags.push('malformed-exif');
+  } else if (metadata?.metadataStatus === 'missing-file') {
+    flags.push('missing-file-metadata');
+  }
+
+  return flags;
+}
+
+function computeConfidenceCap({ predictedClass, crowdScore, duplicateInfo, locationMatchInfo, timestampInfo, metadata }) {
   let cap = 0.9;
 
   if (predictedClass === 'normal') cap = Math.min(cap, 0.35);
   if (duplicateInfo?.isDuplicate) cap = Math.min(cap, 0.3);
+  if (metadata?.metadataStatus === 'missing-exif') cap = Math.min(cap, 0.42);
+  if (metadata?.metadataStatus === 'malformed-exif' || metadata?.metadataStatus === 'missing-file') cap = Math.min(cap, 0.35);
+  if (locationMatchInfo?.metadataStatus === 'missing-exif-location') cap = Math.min(cap, 0.5);
   if ((locationMatchInfo?.mismatchMeters || 0) > 10000) cap = Math.min(cap, 0.4);
   else if ((locationMatchInfo?.mismatchMeters || 0) > 2000) cap = Math.min(cap, 0.4);
+  if (timestampInfo?.metadataStatus === 'missing-exif-time') cap = Math.min(cap, 0.5);
   if (timestampInfo?.metadataStatus === 'timestamp-old' || timestampInfo?.metadataStatus === 'timestamp-very-old') {
     cap = Math.min(cap, 0.55);
   }
-  if (crowdScore < 0.2) cap = Math.min(cap, 0.65);
+  if (crowdScore < 0.2) cap = Math.min(cap, 0.2);
 
   return Number(cap.toFixed(4));
 }
@@ -264,13 +282,14 @@ function computeConfidenceBreakdown({ predictedClass, topClassProbability, weath
     ? clampScore(Math.min(topClassProbability, 0.35))
     : clampScore(topClassProbability);
 
-  const rawOverall = clampScore(
-    0.35 * visualEvidence +
-    0.15 * weatherScore +
+  const evidenceScore = clampScore(
+    0.45 * visualEvidence +
+    0.20 * weatherScore +
     0.25 * crowdScore +
-    0.10 * qualityScore +
-    0.15 * trustScore
+    0.10 * qualityScore
   );
+  const trustMultiplier = 0.35 + 0.65 * trustScore;
+  const rawOverall = clampScore(evidenceScore * trustMultiplier);
 
   const overall = Math.min(rawOverall, confidenceCap);
 
@@ -280,6 +299,7 @@ function computeConfidenceBreakdown({ predictedClass, topClassProbability, weath
     crowd: Number(crowdScore.toFixed(4)),
     quality: Number(qualityScore.toFixed(4)),
     trust: Number(trustScore.toFixed(4)),
+    evidence: Number(evidenceScore.toFixed(4)),
     rawOverall: Number(rawOverall.toFixed(4)),
     overall: Number(overall.toFixed(4)),
     confidenceCap: Number(confidenceCap.toFixed(4)),
@@ -327,6 +347,7 @@ async function analyzeSnapSOS(user, payload, file, req) {
     duplicateInfo,
     locationMatchInfo,
     timestampInfo,
+    metadata,
   });
   const breakdown = computeConfidenceBreakdown({
     predictedClass: prediction.predictedClass,
@@ -338,6 +359,7 @@ async function analyzeSnapSOS(user, payload, file, req) {
     confidenceCap,
   });
   const suspicionFlags = Array.from(new Set([
+    ...computeMetadataFlags(metadata),
     ...locationMatchInfo.flags,
     ...timestampInfo.flags,
     ...duplicateInfo.flags,
@@ -555,3 +577,14 @@ module.exports = {
   analyzeSnapSOS,
   confirmSnapSOS,
 };
+
+if (process.env.NODE_ENV === 'test') {
+  module.exports.__testables = {
+    computeConfidenceBreakdown,
+    computeConfidenceCap,
+    computeExifLocationMatch,
+    computeExifTimestampFreshness,
+    computeMetadataFlags,
+    computeTrustScore,
+  };
+}

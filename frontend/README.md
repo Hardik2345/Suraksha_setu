@@ -95,9 +95,12 @@ The frontend connects to the backend API at `http://localhost:6001/api`. The bas
 1. Environment variable: Create a `.env` file with:
    ```
    VITE_API_BASE_URL=http://localhost:6001/api
+   VITE_GOOGLE_MAPS_API_KEY=your_google_maps_browser_key
    ```
 
 2. Vite config proxy is also configured for `/api` routes.
+
+The admin outbreak map requires a Google Maps browser key with Maps JavaScript API enabled.
 
 ### Authentication
 

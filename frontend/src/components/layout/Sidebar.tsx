@@ -20,6 +20,7 @@ import {
   Notifications as AlertIcon,
   Campaign as BroadcastIcon,
   History as HistoryIcon,
+  Map as MapIcon,
 } from '@mui/icons-material';
 import { useAppSelector } from '../../app/hooks';
 import { selectCurrentUser, selectIsAdmin } from '../../features/auth/authSlice';
@@ -44,6 +45,7 @@ const citizenMenuItems: MenuItem[] = [
 const adminMenuItems: MenuItem[] = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: <DashboardIcon /> },
   { label: 'All SOS Reports', path: '/admin/sos', icon: <SOSIcon /> },
+  { label: 'Outbreak Map', path: '/admin/outbreak-map', icon: <MapIcon /> },
   { label: 'Manage Resources', path: '/admin/resources', icon: <ResourceIcon /> },
   { label: 'Broadcast Alert', path: '/admin/broadcast', icon: <BroadcastIcon /> },
   { label: 'Alert History', path: '/admin/alert-history', icon: <HistoryIcon /> },

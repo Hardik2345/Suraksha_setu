@@ -53,6 +53,12 @@ export {
 } from './dashboardApi';
 
 export {
+  outbreakMapApi,
+  useGetOutbreakMapQuery,
+  useLazyGetOutbreakMapQuery,
+} from './outbreakMapApi';
+
+export {
   snapSosApi,
   useAnalyzeSnapSOSMutation,
   useConfirmSnapSOSMutation,

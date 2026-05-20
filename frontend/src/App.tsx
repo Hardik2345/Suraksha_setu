@@ -38,6 +38,7 @@ import AllSOS from './pages/admin/AllSOS';
 import ManageResources from './pages/admin/ManageResources';
 import BroadcastAlert from './pages/admin/BroadcastAlert';
 import AlertHistory from './pages/admin/AlertHistory';
+import OutbreakMap from './pages/admin/OutbreakMap';
 
 // Auth initialization component
 function AuthInitializer({ children }: { children: React.ReactNode }) {
@@ -140,6 +141,7 @@ function AppRoutes() {
               <Route path="/admin/resources" element={<ManageResources />} />
               <Route path="/admin/broadcast" element={<BroadcastAlert />} />
               <Route path="/admin/alert-history" element={<AlertHistory />} />
+              <Route path="/admin/outbreak-map" element={<OutbreakMap />} />
             </Route>
 
             {/* Redirects */}
